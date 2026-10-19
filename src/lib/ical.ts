@@ -41,7 +41,7 @@ const VTIMEZONE_BERLIN = [
 export function escapeText(text: string): string {
   return text
     .replace(/\\/g, "\\\\")
-    .replace(/;/g, "\;")
+    .replace(/;/g, String.raw`\;`)
     .replace(/,/g, "\\,")
     .replace(/\r\n|\r|\n/g, "\\n");
 }

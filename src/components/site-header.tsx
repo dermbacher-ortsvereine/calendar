@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { Anmeldestatus } from "@/components/anmeldestatus";
 import { CalendarIcon } from "@/components/icons";
 import { MainNav } from "@/components/main-nav";
 
@@ -23,9 +24,14 @@ export function SiteHeader() {
             </span>
           </span>
         </Link>
-        <Suspense fallback={<MainNav pathname={null} />}>
-          <MainNav />
-        </Suspense>
+        <div className="flex flex-wrap items-center gap-2">
+          <Suspense fallback={<MainNav pathname={null} />}>
+            <MainNav />
+          </Suspense>
+          <Suspense>
+            <Anmeldestatus />
+          </Suspense>
+        </div>
       </div>
     </header>
   );
