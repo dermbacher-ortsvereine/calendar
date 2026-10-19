@@ -6,9 +6,10 @@ export type Veranstalter = Pick<
   Tables<"veranstalter">,
   "id" | "name" | "kuerzel" | "farbe" | "farbe_hg" | "logo_url" | "sortierung"
 >;
-export type Termin = Omit<Tables<"termine">, "erstellt_am" | "geaendert_am">;
+export type Termin = Omit<Tables<"termine">, "erstellt_am">;
 
-const TERMIN_SPALTEN = "id, veranstalter_id, titel, datum, beginn, ende, ort, beschreibung, ansprechpartner";
+const TERMIN_SPALTEN =
+  "id, veranstalter_id, titel, datum, beginn, ende, ort, beschreibung, ansprechpartner, geaendert_am";
 
 // Cache-Tags: nach Änderungen per updateTag()/revalidateTag() neu laden.
 export const TAG_TERMINE = "termine";
@@ -41,6 +42,22 @@ export async function getTermineZwischen(von: string, bis: string): Promise<Term
     .order("datum")
     .order("beginn")
     .order("titel");
+  if (error) throw error;
+  return data;
+}
+
+/** Alle Termine ab einem Datum (für den iCal-Feed). */
+export async function getTermineAb(von: string): Promise<Termin[]> {
+  "use cache";
+  cacheLife("kalender");
+  cacheTag(TAG_TERMINE);
+  const { data, error } = await createPublicClient()
+    .from("termine")
+    .select(TERMIN_SPALTEN)
+    .gte("datum", von)
+    .order("datum")
+    .order("beginn")
+    .limit(2000);
   if (error) throw error;
   return data;
 }
