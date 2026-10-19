@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { abmelden } from "@/app/login/actions";
 import { getSitzung } from "@/lib/sitzung";
 
@@ -10,6 +11,14 @@ export async function Anmeldestatus() {
       <span className="px-1 text-sm text-muted-strong">
         Angemeldet: <strong>{sitzung.anzeigename}</strong>
       </span>
+      {sitzung.istAdmin && (
+        <Link
+          href="/admin"
+          className="inline-flex min-h-11 items-center rounded-control px-4 text-[15px] font-semibold text-ink no-underline hover:bg-accent-hover hover:text-ink"
+        >
+          Admin
+        </Link>
+      )}
       <form action={abmelden}>
         <button
           type="submit"
