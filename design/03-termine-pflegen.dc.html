@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Termine pflegen – Dermbacher Ortsvereine</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#24573A}a:hover{color:#163A26}
+button,input,select,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #F3F5F3; color: #17201B; font-family: 'Figtree', system-ui, sans-serif">
+  <header style="background: #FFFFFF; border-bottom: 1px solid #DDE3DF">
+    <div style="max-width: 1240px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div style="width: 44px; height: 44px; border-radius: 12px; background: {{accent}}; display: flex; align-items: center; justify-content: center">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
+        </div>
+        <div>
+          <div style="font-family: 'Bricolage Grotesque', 'Figtree', sans-serif; font-weight: 700; font-size: 21px; line-height: 1.1">Dermbacher Ortsvereine</div>
+          <div style="font-size: 13px; color: #56615A">Gemeinsamer Veranstaltungskalender</div>
+        </div>
+      </div>
+      <nav aria-label="Hauptnavigation" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+        <a href="Main.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 10px; font-weight: 600; font-size: 15px; text-decoration: none; color: #17201B">Kalender</a>
+        <a href="Raeume.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 10px; font-weight: 600; font-size: 15px; text-decoration: none; color: #17201B">Räume</a>
+        <sc-if value="{{loggedIn}}" hint-placeholder-val="{{ false }}">
+          <span style="font-size: 14px; color: #46504A; padding: 0 4px">Angemeldet: <strong>{{verein}}</strong></span>
+          <button type="button" onClick="{{logout}}" style="min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid #CBD3CE; background: #FFFFFF; font-weight: 600; font-size: 15px; cursor: pointer; color: #17201B">Abmelden</button>
+        </sc-if>
+      </nav>
+    </div>
+  </header>
+
+  <main style="max-width: 1240px; margin: 0 auto; padding: 28px 24px">
+    <sc-if value="{{loggedOut}}" hint-placeholder-val="{{ true }}">
+      <div style="max-width: 440px; margin: 40px auto; background: #FFFFFF; border: 1px solid #DDE3DF; border-radius: 18px; padding: 32px; display: flex; flex-direction: column; gap: 16px">
+        <div style="width: 52px; height: 52px; border-radius: 14px; background: #E6EEE8; display: flex; align-items: center; justify-content: center">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#24573A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+        </div>
+        <h1 style="margin: 0; font-family: 'Bricolage Grotesque', 'Figtree', sans-serif; font-size: 28px">Termine pflegen</h1>
+        <p style="margin: 0; font-size: 15px; color: #46504A; line-height: 1.5">Melde dich mit dem Zugang deines Veranstalters an, um Termine einzutragen oder zu ändern.</p>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Veranstalter
+          <select value="{{verein}}" onChange="{{onVerein}}" style="min-height: 48px; border-radius: 10px; border: 1px solid #CBD3CE; padding: 0 12px; font-size: 16px; background: #FFFFFF; color: #17201B">
+            <sc-for list="{{vereine}}" as="v" hint-placeholder-count="7">
+              <option value="{{v}}">{{v}}</option>
+            </sc-for>
+          </select>
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Passwort
+          <input type="password" autocomplete="current-password" style="min-height: 48px; border-radius: 10px; border: 1px solid #CBD3CE; padding: 0 12px; font-size: 16px; color: #17201B">
+        </label>
+        <button type="button" onClick="{{login}}" style="min-height: 50px; border-radius: 10px; border: 0; background: {{accent}}; color: #FFFFFF; font-weight: 700; font-size: 16px; cursor: pointer">Anmelden</button>
+        <p style="margin: 0; font-size: 13px; color: #56615A">Passwort vergessen? Bitte bei [Ansprechpartner Kalender] melden.</p>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{loggedIn}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; flex-direction: column; gap: 20px">
+        <h1 style="margin: 0; font-family: 'Bricolage Grotesque', 'Figtree', sans-serif; font-size: 30px">Termine – {{verein}}</h1>
+        <sc-if value="{{saved}}" hint-placeholder-val="{{ false }}">
+          <div role="status" style="background: #E6EEE8; color: #163A26; border-radius: 12px; padding: 14px 16px; font-size: 15px; font-weight: 600">Termin gespeichert – er ist ab sofort im öffentlichen Kalender sichtbar.</div>
+        </sc-if>
+        <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+          <section aria-label="Neuer Termin" style="flex: 999 1 560px; min-width: 0; background: #FFFFFF; border: 1px solid #DDE3DF; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+            <h2 style="margin: 0; font-family: 'Bricolage Grotesque', 'Figtree', sans-serif; font-size: 21px">Neuer Termin</h2>
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Titel
+              <input type="text" placeholder="z. B. Herbstkonzert" style="min-height: 46px; border-radius: 10px; border: 1px solid #CBD3CE; padding: 0 12px; font-size: 16px; color: #17201B">
+            </label>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Datum
+                <input type="date" style="min-height: 46px; border-radius: 10px; border: 1px solid #CBD3CE; padding: 0 10px; font-size: 15px; color: #17201B">
+              </label>
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Beginn
+                <input type="time" step="900" style="min-height: 46px; border-radius: 10px; border: 1px solid #CBD3CE; padding: 0 10px; font-size: 15px; color: #17201B">
+              </label>
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Ende (optional)
+                <input type="time" step="900" style="min-height: 46px; border-radius: 10px; border: 1px solid #CBD3CE; padding: 0 10px; font-size: 15px; color: #17201B">
+              </label>
+            </div>
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Ort
+              <input type="text" list="orte" placeholder="Turnhalle, Stüffjen, Dorfplatz …" style="min-height: 46px; border-radius: 10px; border: 1px solid #CBD3CE; padding: 0 12px; font-size: 16px; color: #17201B">
+              <datalist id="orte"><option value="Turnhalle"></option><option value="Stüffjen"></option><option value="Schulungsraum"></option><option value="Dorfplatz"></option><option value="Sportplatz"></option><option value="Kirche"></option><option value="Feuerwehrgerätehaus"></option></datalist>
+            </label>
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Beschreibung (optional)
+              <textarea rows="3" style="border-radius: 10px; border: 1px solid #CBD3CE; padding: 10px 12px; font-size: 15px; resize: vertical; color: #17201B"></textarea>
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; font-size: 15px; min-height: 44px; cursor: pointer">
+              <input type="checkbox" style="width: 20px; height: 20px; accent-color: {{accent}}">
+              Stüffjen oder Schulungsraum gleich mit reservieren
+            </label>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px">
+              <button type="button" onClick="{{save}}" style="min-height: 48px; padding: 0 24px; border-radius: 10px; border: 0; background: {{accent}}; color: #FFFFFF; font-weight: 700; font-size: 16px; cursor: pointer">Termin speichern</button>
+              <button type="button" style="min-height: 48px; padding: 0 20px; border-radius: 10px; border: 1px solid #CBD3CE; background: #FFFFFF; font-weight: 600; font-size: 15px; cursor: pointer; color: #17201B">Abbrechen</button>
+            </div>
+          </section>
+
+          <aside style="flex: 1 1 340px; min-width: 0; background: #FFFFFF; border: 1px solid #DDE3DF; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 4px">
+            <h2 style="margin: 0 0 10px; font-family: 'Bricolage Grotesque', 'Figtree', sans-serif; font-size: 19px">Eure Termine</h2>
+            <sc-for list="{{mine}}" as="m" hint-placeholder-count="3">
+              <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid #EEF1EF">
+                <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-size: 15px; font-weight: 600">{{m.title}}</span>
+                  <span style="font-size: 13px; color: #56615A">{{m.when}}</span>
+                </div>
+                <button type="button" aria-label="Bearbeiten" style="width: 44px; height: 44px; border-radius: 10px; border: 1px solid #DDE3DF; background: #FFFFFF; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #17201B">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"></path></svg>
+                </button>
+                <button type="button" aria-label="Löschen" style="width: 44px; height: 44px; border-radius: 10px; border: 1px solid #DDE3DF; background: #FFFFFF; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #B3261E">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg>
+                </button>
+              </div>
+            </sc-for>
+          </aside>
+        </div>
+      </div>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#24573A","options":["#24573A","#1D4E89","#7A3B12","#3B3F45"]},"$preview":{"width":1280,"height":1100}}'>
+const VEREINE = ['VfL Dermbach', 'Musikverein Dermbach', 'Gesangsverein Dermbach', 'Freiwillige Feuerwehr Dermbach', 'kfd Dermbach', 'Weihnachtstreiben GbR', 'Karnevals GbR'];
+const MINE = {
+  'Musikverein Dermbach': [
+    { title: 'Jahreshauptversammlung', when: 'Mi, 21. Okt. · 19:00 Uhr · Stüffjen' },
+    { title: 'Herbstkonzert', when: 'Sa, 7. Nov. · 19:00 Uhr · Turnhalle' },
+    { title: 'Weihnachtskonzert', when: 'Sa, 19. Dez. · 17:00 Uhr · Kirche' }
+  ]
+};
+class Component extends DCLogic {
+  renderVals() {
+    const self = this;
+    const s = Object.assign({ loggedIn: false, verein: 'Musikverein Dermbach', saved: false }, this.state || {});
+    const accent = this.props.accent ?? '#24573A';
+    return {
+      accent: accent,
+      vereine: VEREINE,
+      verein: s.verein,
+      loggedIn: s.loggedIn,
+      loggedOut: !s.loggedIn,
+      saved: s.saved,
+      mine: MINE[s.verein] || [{ title: 'Noch keine Termine', when: 'Leg oben deinen ersten Termin an.' }],
+      onVerein: function (e) { self.setState({ verein: e.target.value }); },
+      login: function () { self.setState({ loggedIn: true, saved: false }); },
+      logout: function () { self.setState({ loggedIn: false, saved: false }); },
+      save: function () { self.setState({ saved: true }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

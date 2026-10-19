@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Raumbelegung Turnhalle Dermbach</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#24573A}a:hover{color:#163A26}
+button,input,select,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #F3F5F3; color: #17201B; font-family: 'Figtree', system-ui, sans-serif">
+  <header style="background: #FFFFFF; border-bottom: 1px solid #DDE3DF">
+    <div style="max-width: 1240px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div style="width: 44px; height: 44px; border-radius: 12px; background: {{accent}}; display: flex; align-items: center; justify-content: center">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
+        </div>
+        <div>
+          <div style="font-family: 'Bricolage Grotesque', 'Figtree', sans-serif; font-weight: 700; font-size: 21px; line-height: 1.1">Dermbacher Ortsvereine</div>
+          <div style="font-size: 13px; color: #56615A">Gemeinsamer Veranstaltungskalender</div>
+        </div>
+      </div>
+      <nav aria-label="Hauptnavigation" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+        <a href="Main.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 10px; font-weight: 600; font-size: 15px; text-decoration: none; color: #17201B">Kalender</a>
+        <a href="Raeume.dc.html" aria-current="page" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 10px; font-weight: 600; font-size: 15px; text-decoration: none; background: #E6EEE8; color: #1B4A30">Räume</a>
+        <a href="Admin.dc.html" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 10px; font-weight: 600; font-size: 15px; text-decoration: none; background: {{accent}}; color: #FFFFFF">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+          Termin eintragen
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main style="max-width: 1240px; margin: 0 auto; padding: 28px 24px; display: flex; flex-direction: column; gap: 22px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <h1 style="margin: 0; font-family: 'Bricolage Grotesque', 'Figtree', sans-serif; font-size: 30px">Räume in der Turnhalle</h1>
+      <p style="margin: 0; font-size: 16px; color: #46504A">Belegung ansehen und einen Raum für eure Veranstaltung reservieren.</p>
+    </div>
+
+    <div role="group" aria-label="Raum wählen" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px">
+      <sc-for list="{{rooms}}" as="r" hint-placeholder-count="2">
+        <button type="button" onClick="{{r.pick}}" aria-pressed="{{r.on}}" style="{{r.style}}">
+          <div style="width: 48px; height: 48px; border-radius: 12px; background: #E6EEE8; display: flex; align-items: center; justify-content: center; flex-shrink: 0">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#24573A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"></path><path d="M14 12h.01"></path></svg>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 3px; text-align: left">
+            <span style="font-size: 19px; font-weight: 700">{{r.name}}</span>
+            <span style="font-size: 13px; font-weight: 600; color: #24573A">{{r.countLabel}}</span>
+          </div>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+      <section aria-label="Belegungsplan" style="flex: 999 1 640px; min-width: 0; background: #FFFFFF; border: 1px solid #DDE3DF; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 16px">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px">
+          <h2 style="margin: 0; font-family: 'Bricolage Grotesque', 'Figtree', sans-serif; font-size: 20px">Belegung {{roomName}}</h2>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <button type="button" onClick="{{prevWeek}}" aria-label="Vorherige Woche" style="width: 44px; height: 44px; border-radius: 10px; border: 1px solid #CBD3CE; background: #FFFFFF; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #17201B">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>
+            </button>
+            <span style="min-width: 190px; text-align: center; font-weight: 700; font-size: 15px">{{weekLabel}}</span>
+            <button type="button" onClick="{{nextWeek}}" aria-label="Nächste Woche" style="width: 44px; height: 44px; border-radius: 10px; border: 1px solid #CBD3CE; background: #FFFFFF; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #17201B">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+            </button>
+          </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px">
+          <sc-for list="{{days}}" as="day" hint-placeholder-count="7">
+            <div style="{{day.style}}">
+              <div style="display: flex; justify-content: space-between; align-items: baseline">
+                <span style="font-weight: 700; font-size: 15px">{{day.wd}}</span>
+                <span style="font-size: 13px; color: #56615A">{{day.date}}</span>
+              </div>
+              <sc-for list="{{day.items}}" as="b" hint-placeholder-count="1">
+                <div style="{{b.style}}">
+                  <span style="font-size: 13px; font-weight: 700">{{b.time}}</span>
+                  <span style="font-size: 13px; font-weight: 600">{{b.vName}}</span>
+                  <span style="font-size: 12px; color: #46504A">{{b.zweck}}</span>
+                </div>
+              </sc-for>
+              <sc-if value="{{day.free}}" hint-placeholder-val="{{ true }}">
+                <span style="font-size: 13px; color: #56615A">Noch frei</span>
+              </sc-if>
+              <button type="button" onClick="{{day.book}}" style="margin-top: auto; min-height: 40px; border-radius: 8px; border: 1.5px dashed #9FB3A6; background: transparent; color: #24573A; font-weight: 600; font-size: 13px; cursor: pointer">Reservieren</button>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <aside style="flex: 1 1 320px; min-width: 0; background: #FFFFFF; border: 1px solid #DDE3DF; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+        <h2 style="margin: 0; font-family: 'Bricolage Grotesque', 'Figtree', sans-serif; font-size: 20px">Raum reservieren</h2>
+        <sc-if value="{{sent}}" hint-placeholder-val="{{ false }}">
+          <div role="status" style="background: #E6EEE8; color: #163A26; border-radius: 10px; padding: 12px 14px; font-size: 14px; font-weight: 600">Reservierung eingetragen – sie erscheint jetzt im Belegungsplan.</div>
+        </sc-if>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Raum
+          <select value="{{room}}" onChange="{{onRoom}}" style="min-height: 44px; border-radius: 10px; border: 1px solid #CBD3CE; padding: 0 12px; font-size: 15px; background: #FFFFFF; color: #17201B">
+            <option value="stueffchen">Stüffjen</option>
+            <option value="schulung">Schulungsraum</option>
+          </select>
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Datum
+          <input type="date" value="{{formDate}}" onChange="{{onDate}}" style="min-height: 44px; border-radius: 10px; border: 1px solid #CBD3CE; padding: 0 12px; font-size: 15px; color: #17201B">
+        </label>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Von
+            <input type="time" step="900" style="min-height: 44px; border-radius: 10px; border: 1px solid #CBD3CE; padding: 0 12px; font-size: 15px; color: #17201B">
+          </label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Bis
+            <input type="time" step="900" style="min-height: 44px; border-radius: 10px; border: 1px solid #CBD3CE; padding: 0 12px; font-size: 15px; color: #17201B">
+          </label>
+        </div>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Veranstalter
+          <select style="min-height: 44px; border-radius: 10px; border: 1px solid #CBD3CE; padding: 0 12px; font-size: 15px; background: #FFFFFF; color: #17201B">
+              <option>VfL Dermbach</option>
+              <option>Musikverein Dermbach</option>
+              <option>Gesangsverein Dermbach</option>
+              <option>Freiwillige Feuerwehr Dermbach</option>
+              <option>kfd Dermbach</option>
+              <option>Weihnachtstreiben GbR</option>
+              <option>Karnevals GbR</option>
+          </select>
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Wofür?
+          <input type="text" placeholder="z. B. Vorstandssitzung" style="min-height: 44px; border-radius: 10px; border: 1px solid #CBD3CE; padding: 0 12px; font-size: 15px; color: #17201B">
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Ansprechpartner &amp; Telefon
+          <input type="text" style="min-height: 44px; border-radius: 10px; border: 1px solid #CBD3CE; padding: 0 12px; font-size: 15px; color: #17201B">
+        </label>
+        <button type="button" onClick="{{submit}}" style="min-height: 48px; border-radius: 10px; border: 0; background: {{accent}}; color: #FFFFFF; font-weight: 700; font-size: 16px; cursor: pointer">Reservieren</button>
+        <p style="margin: 0; font-size: 13px; color: #56615A; line-height: 1.45">Überschneidungen werden automatisch geprüft.</p>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#24573A","options":["#24573A","#1D4E89","#7A3B12","#3B3F45"]},"$preview":{"width":1280,"height":1240}}'>
+const VCOL = {
+  'VfL Dermbach': ['#1D5FA8', '#E4EEF9'], 'Musikverein Dermbach': ['#0B6670', '#DDF1F2'], 'Gesangsverein Dermbach': ['#3B6E12', '#E6F2D5'],
+  'Freiwillige Feuerwehr Dermbach': ['#B3261E', '#FAE6E4'], 'kfd Dermbach': ['#6B3FA0', '#EFE8F8'], 'Weihnachtstreiben GbR': ['#6B3A1E', '#F1E2D6'], 'Karnevals GbR': ['#6E5000', '#FFE58A']
+};
+const ROOMS = [
+  { id: 'stueffchen', name: 'Stüffjen', desc: 'Gemütlicher Vereinsraum · [Plätze] Plätze · [Ausstattung]' },
+  { id: 'schulung', name: 'Schulungsraum', desc: 'Für Sitzungen und Kurse · [Plätze] Plätze · [Ausstattung]' }
+];
+const BOOK = [
+  { r: 'stueffchen', d: '2026-10-21', from: '19:00', to: '22:00', v: 'Musikverein Dermbach', zweck: 'Jahreshauptversammlung' },
+  { r: 'stueffchen', d: '2026-10-22', from: '15:00', to: '17:00', v: 'Gesangsverein Dermbach', zweck: 'Chorprobe' },
+  { r: 'stueffchen', d: '2026-10-24', from: '18:00', to: '23:00', v: 'Karnevals GbR', zweck: 'Elferratssitzung' },
+  { r: 'stueffchen', d: '2026-10-28', from: '15:00', to: '17:30', v: 'kfd Dermbach', zweck: 'Seniorencafé' },
+  { r: 'stueffchen', d: '2026-10-30', from: '19:00', to: '22:00', v: 'Freiwillige Feuerwehr Dermbach', zweck: 'Kameradschaftsabend' },
+  { r: 'schulung', d: '2026-10-19', from: '19:00', to: '21:00', v: 'Freiwillige Feuerwehr Dermbach', zweck: 'Erste-Hilfe-Kurs' },
+  { r: 'schulung', d: '2026-10-20', from: '18:00', to: '20:00', v: 'VfL Dermbach', zweck: 'Vorstandssitzung' },
+  { r: 'schulung', d: '2026-10-23', from: '16:00', to: '17:30', v: 'Weihnachtstreiben GbR', zweck: 'Helfertreffen' },
+  { r: 'schulung', d: '2026-10-26', from: '19:00', to: '21:30', v: 'Gesangsverein Dermbach', zweck: 'Vorstandssitzung' },
+  { r: 'schulung', d: '2026-10-27', from: '19:00', to: '21:00', v: 'Freiwillige Feuerwehr Dermbach', zweck: 'Atemschutz-Theorie' }
+];
+const WD = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+const MON = ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sep.', 'Okt.', 'Nov.', 'Dez.'];
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function key(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+
+class Component extends DCLogic {
+  renderVals() {
+    const self = this;
+    const s = Object.assign({ room: 'stueffchen', week: 0, formDate: '2026-10-19', sent: false }, this.state || {});
+    const accent = this.props.accent ?? '#24573A';
+    const monday = new Date(2026, 9, 19 + s.week * 7);
+    const sunday = new Date(2026, 9, 25 + s.week * 7);
+    const weekKeys = [];
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+      const k = key(d);
+      weekKeys.push(k);
+      const items = BOOK.filter(function (b) { return b.r === s.room && b.d === k; }).map(function (b) {
+        const c = VCOL[b.v];
+        return { time: b.from + '–' + b.to, vName: b.v, zweck: b.zweck, style: 'display: flex; flex-direction: column; gap: 2px; padding: 8px; border-radius: 8px; background: ' + c[1] + '; color: ' + c[0] + '; border-left: 0;' };
+      });
+      const isToday = k === '2026-10-19';
+      days.push({
+        wd: WD[i],
+        date: d.getDate() + '. ' + MON[d.getMonth()],
+        items: items,
+        free: items.length === 0,
+        book: function () { self.setState({ formDate: k, sent: false }); },
+        style: 'flex: 1 1 130px; min-width: 0; min-height: 190px; display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; ' + (isToday ? 'background: #F0F5F1; border: 1.5px solid ' + accent + ';' : 'background: #F7F8F7; border: 1px solid #E6EAE7;')
+      });
+    }
+    const rooms = ROOMS.map(function (r) {
+      const on = r.id === s.room;
+      const n = BOOK.filter(function (b) { return b.r === r.id && weekKeys.indexOf(b.d) !== -1; }).length;
+      return {
+        name: r.name, desc: r.desc, on: on,
+        countLabel: n === 0 ? 'Diese Woche frei' : n + (n === 1 ? ' Belegung' : ' Belegungen') + ' in dieser Woche',
+        pick: function () { self.setState({ room: r.id }); },
+        style: 'display: flex; align-items: center; gap: 16px; padding: 18px; border-radius: 16px; cursor: pointer; color: #17201B; background: #FFFFFF; ' + (on ? 'border: 2px solid ' + accent + '; box-shadow: 0 2px 8px rgba(23,32,27,0.08);' : 'border: 2px solid #DDE3DF;')
+      };
+    });
+    const room = ROOMS.find(function (r) { return r.id === s.room; });
+    return {
+      accent: accent,
+      rooms: rooms,
+      room: s.room,
+      roomName: room.name,
+      days: days,
+      weekLabel: monday.getDate() + '. ' + MON[monday.getMonth()] + ' – ' + sunday.getDate() + '. ' + MON[sunday.getMonth()] + ' ' + sunday.getFullYear(),
+      prevWeek: function () { self.setState({ week: s.week - 1 }); },
+      nextWeek: function () { self.setState({ week: s.week + 1 }); },
+      formDate: s.formDate,
+      onDate: function (e) { self.setState({ formDate: e.target.value }); },
+      onRoom: function (e) { self.setState({ room: e.target.value }); },
+      sent: s.sent,
+      submit: function () { self.setState({ sent: true }); }
+    };
+  }
+}
+</script>
+</body>
+</html>
