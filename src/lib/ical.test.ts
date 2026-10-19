@@ -19,7 +19,13 @@ const ics = (t: Partial<IcalTermin> = {}) =>
   erzeugeKalender([{ ...basis, ...t }], { name: "Test", basisUrl: "https://example.test" });
 
 test("escapet Sonderzeichen", () => {
-  assert.equal(escapeText("a,b;c\\d\ne"), "a\\,b\;c\\\\d\\ne");
+  assert.equal(escapeText("a,b;c\\d\ne"), String.raw`a\,b\;c\\d\ne`);
+});
+
+test("jedes Semikolon und Komma steht hinter einem Backslash", () => {
+  const out = escapeText("x; y, z;;");
+  assert.equal(out.match(/(?<!\\)[;,]/g), null);
+  assert.equal(out.split("\\").length - 1, 4);
 });
 
 test("faltet lange Zeilen auf 75 Oktette ohne UTF-8-Zeichen zu zerteilen", () => {
