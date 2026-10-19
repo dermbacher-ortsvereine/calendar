@@ -18,6 +18,8 @@ ZUGANG_PASSWORT='…' pnpm zugaenge   # lokale Logins für alle Veranstalter + A
 pnpm dev                      # http://localhost:3000
 ```
 
+Tests: `pnpm test` · Typen: `pnpm typecheck` · Lint: `pnpm lint` · DB-Typen neu erzeugen: `pnpm db:types`
+
 - Supabase Studio lokal: http://127.0.0.1:56423
 - Datenbank neu aufsetzen (Migrationen + Beispieldaten): `pnpm db:reset`, danach `pnpm zugaenge` erneut ausführen.
 
