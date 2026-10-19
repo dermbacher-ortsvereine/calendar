@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { LockIcon } from "@/components/icons";
+import { betreiberAusEnv } from "@/lib/betreiber";
 import { getVeranstalter } from "@/lib/daten";
 import { sichererPfad } from "@/lib/pfad";
 import { getSitzung } from "@/lib/sitzung";
@@ -19,6 +20,9 @@ async function LoginInhalt({ searchParams }: { searchParams: PageProps<"/login">
 }
 
 export default function LoginPage(props: PageProps<"/login">) {
+  const { email } = betreiberAusEnv();
+  const emailGesetzt = !email.startsWith("[");
+
   return (
     <main className="px-4 py-7 sm:px-6">
       <div className="mx-auto my-6 flex max-w-[440px] flex-col gap-4 rounded-[18px] border border-line bg-surface p-6 sm:my-10 sm:p-8">
@@ -33,7 +37,15 @@ export default function LoginPage(props: PageProps<"/login">) {
           <LoginInhalt searchParams={props.searchParams} />
         </Suspense>
         <p className="text-[13px] text-muted">
-          Passwort vergessen? Bitte bei [Ansprechpartner Kalender] melden.
+          Passwort vergessen? Bitte per E-Mail an{" "}
+          {emailGesetzt ? (
+            <a href={`mailto:${email}`} className="text-accent underline underline-offset-2">
+              {email}
+            </a>
+          ) : (
+            email
+          )}{" "}
+          melden.
         </p>
       </div>
     </main>
