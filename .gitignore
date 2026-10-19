@@ -1,0 +1,25 @@
+# Abhängigkeiten / Build
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# Umgebungsvariablen – niemals committen (öffentliches Repo!)
+.env
+.env*.local
+.env.*
+!.env.example
+
+# Supabase lokal
+supabase/.temp/
+supabase/.branches/
+
+# Vercel
+.vercel/
+
+# Editor / OS
+.idea/
+.DS_Store
+*.log
