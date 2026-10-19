@@ -7,10 +7,10 @@ import { PlusIcon } from "@/components/icons";
 const linkBase =
   "inline-flex min-h-11 items-center gap-2 rounded-control px-4 text-[15px] font-semibold no-underline";
 
-export function MainNav() {
-  const pathname = usePathname();
+function NavLinks({ pathname }: { pathname: string | null }) {
   const isActive = (href: string) =>
-    href === "/" ? pathname === "/" || pathname.startsWith("/termin/") : pathname.startsWith(href);
+    pathname !== null &&
+    (href === "/" ? pathname === "/" || pathname.startsWith("/termin/") : pathname.startsWith(href));
 
   return (
     <nav aria-label="Hauptnavigation" className="flex flex-wrap items-center gap-2">
@@ -41,4 +41,13 @@ export function MainNav() {
       </Link>
     </nav>
   );
+}
+
+function NavMitPfad() {
+  return <NavLinks pathname={usePathname()} />;
+}
+
+/** Ohne `pathname`-Prop wird der aktuelle Pfad gelesen (braucht Suspense bei dynamischen Routen). */
+export function MainNav({ pathname }: { pathname?: string | null }) {
+  return pathname === undefined ? <NavMitPfad /> : <NavLinks pathname={pathname} />;
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { CalendarIcon } from "@/components/icons";
 import { MainNav } from "@/components/main-nav";
 
@@ -22,7 +23,9 @@ export function SiteHeader() {
             </span>
           </span>
         </Link>
-        <MainNav />
+        <Suspense fallback={<MainNav pathname={null} />}>
+          <MainNav />
+        </Suspense>
       </div>
     </header>
   );
