@@ -21,12 +21,13 @@ export const getSitzung = cache(async (): Promise<Sitzung | null> => {
 
   const { data: profil } = await supabase
     .from("profile")
-    .select("ist_admin, veranstalter:veranstalter_id (id, name)")
+    .select("ist_admin, veranstalter:veranstalter_id (id, name, aktiv)")
     .eq("user_id", userId)
     .maybeSingle();
   if (!profil) return null;
 
-  const veranstalter = profil.veranstalter ?? null;
+  // Deaktivierte Veranstalter gelten als abgemeldet (die Datenbank verweigert ihnen ebenfalls das Schreiben).
+  const veranstalter = profil.veranstalter?.aktiv ? { id: profil.veranstalter.id, name: profil.veranstalter.name } : null;
   if (!profil.ist_admin && !veranstalter) return null;
 
   return {

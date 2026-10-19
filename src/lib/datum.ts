@@ -42,7 +42,9 @@ export function monatVon(tag: string): Monat {
 }
 
 export function istMonat(wert: string | undefined): wert is Monat {
-  return !!wert && /^\d{4}-(0[1-9]|1[0-2])$/.test(wert);
+  if (!wert || !/^\d{4}-(0[1-9]|1[0-2])$/.test(wert)) return false;
+  const jahr = Number(wert.slice(0, 4));
+  return jahr >= 2000 && jahr <= 2100;
 }
 
 export function plusMonate(monat: Monat, n: number): Monat {

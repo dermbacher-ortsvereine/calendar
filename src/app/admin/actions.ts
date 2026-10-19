@@ -83,7 +83,7 @@ export async function veranstalterAnlegen(vorher: AdminZustand, formData: FormDa
   }
 
   // Auth-Zugang anlegen – der Datenbank-Trigger verknüpft ihn über login_email mit dem Veranstalter.
-  const zugang = await zugangSetzen(loginEmail, passwort);
+  const zugang = await zugangSetzen(loginEmail, passwort, { veranstalter_id: werte.id, ist_admin: false });
   updateTag(TAG_VERANSTALTER);
   if (zugang.fehler) {
     return { fehler: `Veranstalter angelegt, aber der Zugang nicht: ${zugang.fehler}. Bitte das Passwort unten neu setzen.`, version };
@@ -103,7 +103,7 @@ export async function passwortSetzen(vorher: AdminZustand, formData: FormData): 
   const { data: v } = await supabase.from("veranstalter").select("login_email").eq("id", id).maybeSingle();
   if (!v) return { fehler: "Veranstalter nicht gefunden.", version };
 
-  const res = await zugangSetzen(v.login_email, passwort);
+  const res = await zugangSetzen(v.login_email, passwort, { veranstalter_id: id, ist_admin: false });
   if (res.fehler) return { fehler: `Das hat nicht geklappt: ${res.fehler}`, version };
   return { erfolg: res.angelegt ? "Zugang angelegt." : "Neues Passwort gesetzt. Bitte dem Veranstalter mitteilen.", version };
 }

@@ -1,6 +1,6 @@
 // Legt für jeden aktiven Veranstalter und für die Administration einen Auth-Benutzer an
-// (bzw. setzt das Passwort neu, falls es ihn schon gibt). Die Verknüpfung mit dem
-// Veranstalter übernimmt der Datenbank-Trigger anhand der login_email.
+// (bzw. setzt das Passwort neu, falls es ihn schon gibt) und verknüpft ihn mit seinem
+// Profil (Veranstalter bzw. Administration).
 //
 // Aufruf (Passwort NIE ins Repo schreiben):
 //   ZUGANG_PASSWORT='…' node --env-file=.env.local scripts/zugaenge-anlegen.mjs
@@ -36,8 +36,8 @@ const { data: veranstalter, error } = await supabase
 if (error) throw error;
 
 const ziele = [
-  ...veranstalter.map((v) => ({ id: v.id, name: v.name, email: v.login_email })),
-  { id: "admin", name: "Administration", email: ADMIN_EMAIL },
+  ...veranstalter.map((v) => ({ id: v.id, name: v.name, email: v.login_email, profil: { veranstalter_id: v.id, ist_admin: false } })),
+  { id: "admin", name: "Administration", email: ADMIN_EMAIL, profil: { veranstalter_id: null, ist_admin: true } },
 ].filter((z) => nur.length === 0 || nur.includes(z.id));
 
 const { data: liste, error: listError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
@@ -49,8 +49,11 @@ for (const z of ziele) {
   const res = userId
     ? await supabase.auth.admin.updateUserById(userId, { password: passwort })
     : await supabase.auth.admin.createUser({ email: z.email, password: passwort, email_confirm: true });
-  if (res.error) {
-    console.error(`✗ ${z.name}: ${res.error.message}`);
+  const profil = res.error
+    ? null
+    : await supabase.from("profile").upsert({ user_id: res.data.user.id, ...z.profil }, { onConflict: "user_id" });
+  if (res.error || profil?.error) {
+    console.error(`✗ ${z.name}: ${(res.error ?? profil.error).message}`);
   } else {
     console.log(`✓ ${z.name} (${z.email}) ${userId ? "Passwort aktualisiert" : "angelegt"}`);
   }

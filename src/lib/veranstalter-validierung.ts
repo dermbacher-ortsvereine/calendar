@@ -21,6 +21,9 @@ export type VeranstalterDaten = {
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
+/** Kennungen, die nicht vergeben werden dürfen (z. B. Login-Adresse der Administration). */
+export const RESERVIERTE_IDS = ["admin", "administration", "root", "system", "support"];
+
 function kanal(c: number): number {
   const s = c / 255;
   return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
@@ -47,6 +50,8 @@ export function pruefeVeranstalter(
   const fehler: Partial<Record<keyof VeranstalterEingabe, string>> = {};
   if (neu && !/^[a-z0-9]{2,20}$/.test(e.id)) {
     fehler.id = "Nur Kleinbuchstaben und Ziffern, 2–20 Zeichen (z. B. „tc“).";
+  } else if (neu && RESERVIERTE_IDS.includes(e.id)) {
+    fehler.id = `„${e.id}“ ist reserviert. Bitte eine andere Kennung wählen.`;
   }
   if (!e.name.trim()) fehler.name = "Bitte einen Namen eingeben.";
   else if (e.name.trim().length > 80) fehler.name = "Höchstens 80 Zeichen.";

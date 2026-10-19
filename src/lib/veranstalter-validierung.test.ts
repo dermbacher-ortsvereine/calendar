@@ -41,6 +41,12 @@ test("ungültige ID, zu langes Kürzel, zu wenig Kontrast", () => {
   if (!r.ok) assert.deepEqual(Object.keys(r.fehler).sort(), ["farbe", "id", "kuerzel"]);
 });
 
+test("reservierte Kennung admin wird abgelehnt", () => {
+  const r = pruefeVeranstalter({ ...gut, id: "admin" }, { neu: true });
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.ok(r.fehler.id);
+});
+
 test("ID wird beim Bearbeiten nicht geprüft", () => {
   assert.equal(pruefeVeranstalter({ ...gut, id: "" }, { neu: false }).ok, true);
 });
