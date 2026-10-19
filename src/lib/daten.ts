@@ -75,3 +75,42 @@ export async function getTermin(id: string): Promise<Termin | null> {
   if (error) throw error;
   return data;
 }
+
+export const TAG_RESERVIERUNGEN = "reservierungen";
+
+export type Raum = Tables<"raeume">;
+
+export type Belegung = {
+  id: string;
+  raum_id: string;
+  veranstalter_id: string;
+  zweck: string | null;
+  /** tstzrange als Text, siehe parseZeitraum() */
+  zeitraum: string;
+};
+
+export async function getRaeume(): Promise<Raum[]> {
+  "use cache";
+  cacheLife("kalender");
+  cacheTag(TAG_VERANSTALTER);
+  const { data, error } = await createPublicClient().from("raeume").select("*").order("sortierung");
+  if (error) throw error;
+  return data;
+}
+
+/** Öffentliche Belegung (ohne Kontaktdaten) aller Räume, die [von, bis) in Berliner Zeit berührt. */
+export async function getBelegung(von: string, bis: string): Promise<Belegung[]> {
+  "use cache";
+  cacheLife("kalender");
+  cacheTag(TAG_RESERVIERUNGEN);
+  const { data, error } = await createPublicClient()
+    .from("reservierungen_oeffentlich")
+    .select("id, raum_id, veranstalter_id, zweck, zeitraum")
+    .overlaps("zeitraum", `[${von} 00:00 Europe/Berlin,${bis} 00:00 Europe/Berlin)`);
+  if (error) throw error;
+  return (data ?? []).flatMap((b) =>
+    b.id && b.raum_id && b.veranstalter_id && typeof b.zeitraum === "string"
+      ? [{ id: b.id, raum_id: b.raum_id, veranstalter_id: b.veranstalter_id, zweck: b.zweck, zeitraum: b.zeitraum }]
+      : [],
+  );
+}

@@ -99,3 +99,14 @@ export function uhrzeit(zeit: string): string {
 export function zeitraumText(beginn: string, ende: string | null): string {
   return ende ? `${uhrzeit(beginn)}–${uhrzeit(ende)} Uhr` : `ab ${uhrzeit(beginn)} Uhr`;
 }
+
+/** "19. Okt." */
+export function tagMonat(tag: string): string {
+  const d = parse(tag);
+  return `${d.getUTCDate()}. ${MONATE_KURZ[d.getUTCMonth()]}`;
+}
+
+/** "Montag" */
+export function wochentagLang(tag: string): string {
+  return WOCHENTAGE[parse(tag).getUTCDay()];
+}
