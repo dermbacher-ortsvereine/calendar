@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { io } from "next/cache";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -67,6 +68,7 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
   const [raeume, veranstalterListe] = await Promise.all([getRaeume(), getVeranstalter()]);
   const veranstalter = new Map(veranstalterListe.map((v) => [v.id, v]));
 
+  await io(); // "heute" erst zur Anfragezeit bestimmen, nicht beim Prerendern
   const heuteTag = heute();
   const wocheParam = erster(params.woche);
   const montag = wochenMontag(istTag(wocheParam) ? wocheParam : heuteTag);

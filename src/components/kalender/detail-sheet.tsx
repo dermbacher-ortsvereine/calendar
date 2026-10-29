@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
+import { KalenderLink, kalenderNavigieren } from "@/components/kalender/kalender-link";
 
 /**
  * Hülle der Detailansicht: am Desktop eine Karte in der rechten Spalte,
@@ -18,23 +17,21 @@ export function DetailSheet({
   titelId: string;
   children: ReactNode;
 }) {
-  const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     ref.current?.focus({ preventScroll: window.matchMedia("(min-width: 1024px)").matches });
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") router.push(schliessenHref, { scroll: false });
+      if (e.key === "Escape") kalenderNavigieren(schliessenHref);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router, schliessenHref]);
+  }, [schliessenHref]);
 
   return (
     <>
-      <Link
+      <KalenderLink
         href={schliessenHref}
-        scroll={false}
         tabIndex={-1}
         aria-hidden="true"
         className="fixed inset-0 z-40 bg-[#17201B]/40 lg:hidden"

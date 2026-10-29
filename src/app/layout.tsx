@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
+import { Suspense } from "react";
+import { Ladebalken } from "@/components/ladebalken";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
@@ -38,6 +40,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${figtree.variable} ${bricolage.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col font-sans">
+        <Suspense>
+          <Ladebalken />
+        </Suspense>
         <SiteHeader />
         <div className="flex-1">{children}</div>
         <SiteFooter />
