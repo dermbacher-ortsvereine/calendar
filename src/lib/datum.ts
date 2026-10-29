@@ -97,9 +97,33 @@ export function uhrzeit(zeit: string): string {
   return zeit.slice(0, 5);
 }
 
-/** "14:00–17:30 Uhr" bzw. "ab 19:00 Uhr" */
-export function zeitraumText(beginn: string, ende: string | null): string {
+/** "14:00–17:30 Uhr", "ab 19:00 Uhr" bzw. "ganztägig" (ohne Beginn) */
+export function zeitraumText(beginn: string | null, ende: string | null): string {
+  if (!beginn) return "ganztägig";
   return ende ? `${uhrzeit(beginn)}–${uhrzeit(ende)} Uhr` : `ab ${uhrzeit(beginn)} Uhr`;
+}
+
+/** "19:00 Uhr" bzw. "ganztägig" */
+export function beginnText(beginn: string | null): string {
+  return beginn ? `${uhrzeit(beginn)} Uhr` : "ganztägig";
+}
+
+/** "Sa, 24. Okt." bzw. bei mehrtägigen Terminen "Fr, 13. Nov. – So, 15. Nov." */
+export function datumKurzBereich(datum: string, bis: string | null): string {
+  return bis ? `${datumKurz(datum)} – ${datumKurz(bis)}` : datumKurz(datum);
+}
+
+/** "Samstag, 24. Oktober 2026" bzw. "Freitag, 13. November bis Sonntag, 15. November 2026" */
+export function datumLangBereich(datum: string, bis: string | null): string {
+  if (!bis) return datumLang(datum);
+  const anfang = datum.slice(0, 4) === bis.slice(0, 4) ? `${wochentagLang(datum)}, ${tagMonatLang(datum)}` : datumLang(datum);
+  return `${anfang} bis ${datumLang(bis)}`;
+}
+
+/** "24. Oktober" */
+function tagMonatLang(tag: string): string {
+  const d = parse(tag);
+  return `${d.getUTCDate()}. ${MONATE[d.getUTCMonth()]}`;
 }
 
 /** "19. Okt." */

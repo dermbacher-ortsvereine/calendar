@@ -2,14 +2,14 @@ import { io } from "next/cache";
 import Link from "next/link";
 import { getTermin, getTermineZwischen, getVeranstalter, type Termin } from "@/lib/daten";
 import {
-  datumKurz,
+  beginnText,
+  datumKurzBereich,
   heute as heuteBerlin,
   monatsName,
   monatsRaster,
   monatVon,
   plusMonate,
   plusTage,
-  uhrzeit,
 } from "@/lib/datum";
 import {
   istAktiv,
@@ -193,7 +193,7 @@ export async function Kalender({ searchParams }: { searchParams: PageProps<"/">[
                       <span className="flex min-w-0 flex-col gap-0.5">
                         <span className="text-[15px] font-semibold">{t.titel}</span>
                         <span className="text-[13px] text-muted">
-                          {datumKurz(t.datum)} · {uhrzeit(t.beginn)} Uhr · {v.name}
+                          {datumKurzBereich(t.datum, t.bis_datum)} · {beginnText(t.beginn)} · {v.name}
                         </span>
                       </span>
                     </Link>

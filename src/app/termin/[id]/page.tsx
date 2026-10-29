@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getTermin, getVeranstalter } from "@/lib/daten";
-import { datumLang, zeitraumText } from "@/lib/datum";
+import { datumLangBereich, zeitraumText } from "@/lib/datum";
 import { ChevronLeftIcon } from "@/components/icons";
 import { TerminDetails } from "@/components/kalender/termin-details";
 
@@ -13,7 +13,7 @@ export async function generateMetadata(props: PageProps<"/termin/[id]">): Promis
   if (!termin) return { title: "Termin nicht gefunden" };
   return {
     title: termin.titel,
-    description: `${datumLang(termin.datum)}, ${zeitraumText(termin.beginn, termin.ende)}${
+    description: `${datumLangBereich(termin.datum, termin.bis_datum)}, ${zeitraumText(termin.beginn, termin.ende)}${
       termin.ort ? ` · ${termin.ort}` : ""
     }`,
   };

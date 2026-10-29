@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { Termin, Veranstalter } from "@/lib/daten";
-import { datumLang, zeitraumText } from "@/lib/datum";
+import { datumLangBereich, zeitraumText } from "@/lib/datum";
 import { CalendarIcon, ClockIcon, DownloadIcon, PinIcon } from "@/components/icons";
 import { VeranstalterLogo, VeranstalterTag } from "@/components/kalender/veranstalter-tag";
 
@@ -41,7 +41,7 @@ export function TerminDetails({
         {termin.titel}
       </Titel>
       <div className="flex flex-col gap-2.5 text-[15px]">
-        <Zeile icon={<CalendarIcon className="size-[18px]" />}>{datumLang(termin.datum)}</Zeile>
+        <Zeile icon={<CalendarIcon className="size-[18px]" />}>{datumLangBereich(termin.datum, termin.bis_datum)}</Zeile>
         <Zeile icon={<ClockIcon className="size-[18px]" />}>
           {zeitraumText(termin.beginn, termin.ende)}
         </Zeile>

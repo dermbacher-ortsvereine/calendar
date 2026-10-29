@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Termin, Veranstalter } from "@/lib/daten";
-import { monatsRaster, tagesNummer, uhrzeit, WOCHENTAGE_KOPF, type Monat } from "@/lib/datum";
+import { beginnText, monatsRaster, plusTage, tagesNummer, uhrzeit, WOCHENTAGE_KOPF, type Monat } from "@/lib/datum";
 import { kalenderHref, type KalenderZustand } from "@/lib/kalender-url";
 
 const MAX_PRO_TAG = 3;
@@ -18,9 +18,16 @@ export function Monatsansicht({
   veranstalter: Map<string, Veranstalter>;
   zustand: KalenderZustand;
 }) {
-  const proTag = new Map<string, Termin[]>();
-  for (const t of termine) proTag.set(t.datum, [...(proTag.get(t.datum) ?? []), t]);
   const raster = monatsRaster(monat);
+  // Mehrtägige Termine erscheinen an jedem ihrer Tage (begrenzt auf das sichtbare Raster).
+  const letzterRasterTag = raster.at(-1)!.tag;
+  const proTag = new Map<string, Termin[]>();
+  for (const t of termine) {
+    const ende = t.bis_datum && t.bis_datum < letzterRasterTag ? t.bis_datum : (t.bis_datum ?? t.datum);
+    for (let tag = t.datum; tag <= ende; tag = plusTage(tag, 1)) {
+      proTag.set(tag, [...(proTag.get(tag) ?? []), t]);
+    }
+  }
 
   return (
     <div>
@@ -57,12 +64,14 @@ export function Monatsansicht({
                   const v = veranstalter.get(t.veranstalter_id);
                   if (!v) return null;
                   const ausgewaehlt = zustand.termin === t.id;
+                  // Uhrzeit nur am ersten Tag; sonst (ganztägig, Folgetage) das Kürzel, damit am Handy etwas lesbar bleibt
+                  const kurz = t.beginn && t.datum === tag ? uhrzeit(t.beginn) : v.kuerzel;
                   return (
                     <Link
                       key={t.id}
                       href={kalenderHref(zustand, { termin: t.id })}
                       scroll={false}
-                      aria-label={`${t.titel}, ${uhrzeit(t.beginn)} Uhr, ${v.name}`}
+                      aria-label={`${t.titel}, ${t.datum === tag ? beginnText(t.beginn) : "Fortsetzung"}, ${v.name}`}
                       aria-current={ausgewaehlt ? "true" : undefined}
                       className="block w-full truncate rounded-md px-1.5 py-1 text-left text-xs leading-[1.3] font-medium no-underline"
                       style={{
@@ -71,7 +80,7 @@ export function Monatsansicht({
                         boxShadow: ausgewaehlt ? `inset 0 0 0 2px ${v.farbe}` : undefined,
                       }}
                     >
-                      <span className="text-[11px] font-bold sm:text-xs">{uhrzeit(t.beginn)}</span>
+                      <span className="text-[11px] font-bold sm:text-xs">{kurz}</span>
                       <span className="hidden sm:inline"> {t.titel}</span>
                     </Link>
                   );

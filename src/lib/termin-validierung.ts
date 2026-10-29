@@ -3,6 +3,9 @@
 export type TerminEingabe = {
   titel: string;
   datum: string;
+  bis_datum: string;
+  /** "ja" = ganztägig (Uhrzeiten werden ignoriert) */
+  ganztaegig: string;
   beginn: string;
   ende: string;
   ort: string;
@@ -14,7 +17,8 @@ export type TerminEingabe = {
 export type TerminDaten = {
   titel: string;
   datum: string;
-  beginn: string;
+  bis_datum: string | null;
+  beginn: string | null;
   ende: string | null;
   ort: string | null;
   beschreibung: string | null;
@@ -43,6 +47,8 @@ export function eingabeAusFormData(formData: FormData): TerminEingabe {
   return {
     titel: wert("titel"),
     datum: wert("datum"),
+    bis_datum: wert("bis_datum"),
+    ganztaegig: wert("ganztaegig"),
     beginn: wert("beginn"),
     ende: wert("ende"),
     ort: wert("ort"),
@@ -60,8 +66,15 @@ export function pruefeTermin(e: TerminEingabe): Ergebnis {
   else if (titel.length > GRENZEN.titel) fehler.titel = `Der Titel darf höchstens ${GRENZEN.titel} Zeichen haben.`;
 
   if (!gueltigesDatum(e.datum)) fehler.datum = "Bitte ein gültiges Datum wählen.";
-  if (!gueltigeZeit(e.beginn)) fehler.beginn = "Bitte eine Uhrzeit für den Beginn wählen.";
-  if (e.ende.trim() && !gueltigeZeit(e.ende)) fehler.ende = "Bitte eine gültige Uhrzeit wählen oder das Feld leer lassen.";
+  const bis = e.bis_datum.trim();
+  if (bis && !gueltigesDatum(bis)) fehler.bis_datum = "Bitte ein gültiges Datum wählen oder das Feld leer lassen.";
+  else if (bis && !fehler.datum && bis < e.datum) fehler.bis_datum = "Das Enddatum liegt vor dem ersten Tag.";
+
+  const ganztaegig = e.ganztaegig === "ja";
+  if (!ganztaegig) {
+    if (!gueltigeZeit(e.beginn)) fehler.beginn = "Bitte eine Uhrzeit für den Beginn wählen oder „Ganztägig“ ankreuzen.";
+    if (e.ende.trim() && !gueltigeZeit(e.ende)) fehler.ende = "Bitte eine gültige Uhrzeit wählen oder das Feld leer lassen.";
+  }
 
   for (const feld of ["ort", "beschreibung", "ansprechpartner"] as const) {
     if (e[feld].trim().length > GRENZEN[feld]) fehler[feld] = `Höchstens ${GRENZEN[feld]} Zeichen.`;
@@ -73,8 +86,9 @@ export function pruefeTermin(e: TerminEingabe): Ergebnis {
     daten: {
       titel,
       datum: e.datum,
-      beginn: e.beginn.slice(0, 5),
-      ende: leerZuNull(e.ende)?.slice(0, 5) ?? null,
+      bis_datum: bis && bis > e.datum ? bis : null,
+      beginn: ganztaegig ? null : e.beginn.slice(0, 5),
+      ende: ganztaegig ? null : (leerZuNull(e.ende)?.slice(0, 5) ?? null),
       ort: leerZuNull(e.ort),
       beschreibung: leerZuNull(e.beschreibung),
       ansprechpartner: leerZuNull(e.ansprechpartner),

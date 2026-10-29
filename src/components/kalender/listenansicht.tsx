@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Termin, Veranstalter } from "@/lib/daten";
-import { monatsName, monatVon, tagesNummer, wochentagKurz, zeitraumText } from "@/lib/datum";
+import { datumKurz, monatsName, monatVon, tagesNummer, wochentagKurz, zeitraumText } from "@/lib/datum";
 import { kalenderHref, type KalenderZustand } from "@/lib/kalender-url";
 import { VeranstalterTag } from "@/components/kalender/veranstalter-tag";
 
@@ -61,6 +61,7 @@ export function Listenansicht({
                     <span className="flex min-w-0 flex-1 flex-col gap-1">
                       <span className="text-[17px] font-bold">{t.titel}</span>
                       <span className="text-sm text-muted">
+                        {t.bis_datum ? `bis ${datumKurz(t.bis_datum)} · ` : ""}
                         {zeitraumText(t.beginn, t.ende)}
                         {t.ort ? ` · ${t.ort}` : ""}
                       </span>
