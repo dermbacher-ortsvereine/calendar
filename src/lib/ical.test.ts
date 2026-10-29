@@ -6,9 +6,10 @@ const basis: IcalTermin = {
   id: "11111111-2222-3333-4444-555555555555",
   titel: "Herbstkonzert",
   datum: "2026-11-07",
+  bis_datum: null,
   beginn: "19:00:00",
   ende: null,
-  ort: "Turnhalle",
+  ort: "Mehrzweckhalle",
   beschreibung: "Einlass ab 18:30 Uhr.",
   ansprechpartner: null,
   geaendert_am: "2026-10-19T12:34:56.789+00:00",
@@ -65,4 +66,27 @@ test("Ende vor Beginn endet am Folgetag (auch über Monatsgrenze)", () => {
 
 test("Dateiname mit Umlauten", () => {
   assert.equal(dateiname({ titel: "Herbst-Frühschoppen & Grillen!", datum: "2026-10-11" }), "herbst-fruehschoppen-grillen-2026-10-11.ics");
+});
+
+test("ganztägig als DATE mit exklusivem Ende", () => {
+  const out = ics({ beginn: null, ende: null });
+  assert.ok(out.includes("DTSTART;VALUE=DATE:20261107\r\n"));
+  assert.ok(out.includes("DTEND;VALUE=DATE:20261108\r\n"));
+});
+
+test("mehrtägig und ganztägig", () => {
+  const out = ics({ datum: "2026-11-13", bis_datum: "2026-11-15", beginn: null, ende: null });
+  assert.ok(out.includes("DTSTART;VALUE=DATE:20261113\r\n"));
+  assert.ok(out.includes("DTEND;VALUE=DATE:20261116\r\n"));
+});
+
+test("mehrtägig mit Uhrzeiten: Ende am letzten Tag", () => {
+  const out = ics({ datum: "2026-11-13", bis_datum: "2026-11-15", beginn: "18:00", ende: "14:00" });
+  assert.ok(out.includes("DTSTART;TZID=Europe/Berlin:20261113T180000"));
+  assert.ok(out.includes("DTEND;TZID=Europe/Berlin:20261115T140000"));
+});
+
+test("mehrtägig ohne Ende: bis Ende des letzten Tages", () => {
+  const out = ics({ datum: "2026-11-13", bis_datum: "2026-11-15", beginn: "18:00", ende: null });
+  assert.ok(out.includes("DTEND;TZID=Europe/Berlin:20261116T000000"));
 });

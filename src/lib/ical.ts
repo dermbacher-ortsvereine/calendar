@@ -5,8 +5,9 @@ export type IcalTermin = {
   id: string;
   titel: string;
   datum: string; // "YYYY-MM-DD"
-  beginn: string; // "HH:MM[:SS]"
-  ende: string | null; // ende <= beginn bedeutet: endet am Folgetag
+  bis_datum: string | null; // letzter Tag mehrtägiger Termine
+  beginn: string | null; // "HH:MM[:SS]"; leer = ganztägig
+  ende: string | null; // bei eintägigen Terminen: ende <= beginn bedeutet Folgetag
   ort: string | null;
   beschreibung: string | null;
   ansprechpartner: string | null;
@@ -77,8 +78,28 @@ function folgetag(datum: string): string {
   return t.toISOString().slice(0, 10);
 }
 
+function ganzerTag(datum: string): string {
+  return datum.replaceAll("-", "");
+}
+
 function utcStempel(iso: string): string {
   return new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
+/** DTSTART/DTEND: ganztägig als DATE (DTEND exklusiv), sonst Ortszeit Berlin. */
+function zeitraum(t: IcalTermin): string[] {
+  const letzterTag = t.bis_datum ?? t.datum;
+  if (!t.beginn) {
+    return [`DTSTART;VALUE=DATE:${ganzerTag(t.datum)}`, `DTEND;VALUE=DATE:${ganzerTag(folgetag(letzterTag))}`];
+  }
+  const start = `DTSTART;TZID=Europe/Berlin:${lokaleZeit(t.datum, t.beginn)}`;
+  if (t.ende) {
+    const endDatum = !t.bis_datum && t.ende.slice(0, 5) <= t.beginn.slice(0, 5) ? folgetag(t.datum) : letzterTag;
+    return [start, `DTEND;TZID=Europe/Berlin:${lokaleZeit(endDatum, t.ende)}`];
+  }
+  // mehrtägig ohne Ende: bis zum Ende des letzten Tages
+  if (t.bis_datum) return [start, `DTEND;TZID=Europe/Berlin:${lokaleZeit(folgetag(t.bis_datum), "00:00")}`];
+  return [start];
 }
 
 function vevent(t: IcalTermin, basisUrl: string): string[] {
@@ -95,12 +116,8 @@ function vevent(t: IcalTermin, basisUrl: string): string[] {
     `UID:${t.id}@${UID_DOMAIN}`,
     `DTSTAMP:${utcStempel(t.geaendert_am)}`,
     `LAST-MODIFIED:${utcStempel(t.geaendert_am)}`,
-    `DTSTART;TZID=Europe/Berlin:${lokaleZeit(t.datum, t.beginn)}`,
+    ...zeitraum(t),
   ];
-  if (t.ende) {
-    const endDatum = t.ende.slice(0, 5) <= t.beginn.slice(0, 5) ? folgetag(t.datum) : t.datum;
-    zeilen.push(`DTEND;TZID=Europe/Berlin:${lokaleZeit(endDatum, t.ende)}`);
-  }
   zeilen.push(`SUMMARY:${escapeText(t.titel)}`);
   if (t.ort) zeilen.push(`LOCATION:${escapeText(t.ort)}`);
   zeilen.push(`DESCRIPTION:${escapeText(beschreibung)}`);

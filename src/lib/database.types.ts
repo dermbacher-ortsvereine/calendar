@@ -70,13 +70,13 @@ isOneToOne: false
                   ]
                 },"termine": {
                   Row: {
-                    "ansprechpartner": string | null,"beginn": string,"beschreibung": string | null,"datum": string,"ende": string | null,"erstellt_am": string,"geaendert_am": string,"id": string,"ort": string | null,"titel": string,"veranstalter_id": string
+                    "ansprechpartner": string | null,"beginn": string | null,"beschreibung": string | null,"bis_datum": string | null,"datum": string,"ende": string | null,"erstellt_am": string,"geaendert_am": string,"id": string,"ort": string | null,"titel": string,"veranstalter_id": string
                   }
                   Insert: {
-                    "ansprechpartner"?: string | null,"beginn": string,"beschreibung"?: string | null,"datum": string,"ende"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"id"?: string,"ort"?: string | null,"titel": string,"veranstalter_id": string
+                    "ansprechpartner"?: string | null,"beginn"?: string | null,"beschreibung"?: string | null,"bis_datum"?: string | null,"datum": string,"ende"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"id"?: string,"ort"?: string | null,"titel": string,"veranstalter_id": string
                   }
                   Update: {
-                    "ansprechpartner"?: string | null,"beginn"?: string,"beschreibung"?: string | null,"datum"?: string,"ende"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"id"?: string,"ort"?: string | null,"titel"?: string,"veranstalter_id"?: string
+                    "ansprechpartner"?: string | null,"beginn"?: string | null,"beschreibung"?: string | null,"bis_datum"?: string | null,"datum"?: string,"ende"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"id"?: string,"ort"?: string | null,"titel"?: string,"veranstalter_id"?: string
                   }
                   Relationships: [
                     {

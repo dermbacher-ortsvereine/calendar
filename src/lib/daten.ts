@@ -9,7 +9,7 @@ export type Veranstalter = Pick<
 export type Termin = Omit<Tables<"termine">, "erstellt_am">;
 
 const TERMIN_SPALTEN =
-  "id, veranstalter_id, titel, datum, beginn, ende, ort, beschreibung, ansprechpartner, geaendert_am";
+  "id, veranstalter_id, titel, datum, bis_datum, beginn, ende, ort, beschreibung, ansprechpartner, geaendert_am";
 
 // Cache-Tags: nach Änderungen per updateTag()/revalidateTag() neu laden.
 export const TAG_TERMINE = "termine";
@@ -29,7 +29,10 @@ export async function getVeranstalter(): Promise<Veranstalter[]> {
   return data;
 }
 
-/** Termine mit Datum in [von, bis] (inklusive), sortiert. */
+/** PostgREST-Filter: Termin endet am Tag `von` oder später (auch mehrtägige, die vorher begonnen haben). */
+const endetAbFilter = (von: string) => `datum.gte.${von},bis_datum.gte.${von}`;
+
+/** Termine, die [von, bis] (inklusive) berühren, sortiert; ganztägige zuerst. */
 export async function getTermineZwischen(von: string, bis: string): Promise<Termin[]> {
   "use cache";
   cacheLife("kalender");
@@ -37,16 +40,16 @@ export async function getTermineZwischen(von: string, bis: string): Promise<Term
   const { data, error } = await createPublicClient()
     .from("termine")
     .select(TERMIN_SPALTEN)
-    .gte("datum", von)
+    .or(endetAbFilter(von))
     .lte("datum", bis)
     .order("datum")
-    .order("beginn")
+    .order("beginn", { nullsFirst: true })
     .order("titel");
   if (error) throw error;
   return data;
 }
 
-/** Alle Termine ab einem Datum (für den iCal-Feed). */
+/** Alle Termine, die an einem Datum oder später stattfinden (für den iCal-Feed). */
 export async function getTermineAb(von: string): Promise<Termin[]> {
   "use cache";
   cacheLife("kalender");
@@ -54,9 +57,9 @@ export async function getTermineAb(von: string): Promise<Termin[]> {
   const { data, error } = await createPublicClient()
     .from("termine")
     .select(TERMIN_SPALTEN)
-    .gte("datum", von)
+    .or(endetAbFilter(von))
     .order("datum")
-    .order("beginn")
+    .order("beginn", { nullsFirst: true })
     .limit(2000);
   if (error) throw error;
   return data;

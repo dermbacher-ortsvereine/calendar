@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { erfolgBox, fehlerBox } from "@/components/formular/stile";
 import { VeranstalterTag } from "@/components/kalender/veranstalter-tag";
 import { getTermin, getTermineZwischen, getVeranstalter } from "@/lib/daten";
-import { datumKurz, heute, plusTage, uhrzeit } from "@/lib/datum";
+import { beginnText, datumKurzBereich, heute, plusTage } from "@/lib/datum";
 import { getSitzung } from "@/lib/sitzung";
 import { LoeschenKnopf } from "@/app/verwaltung/loeschen-knopf";
 import { TerminFormular } from "@/app/verwaltung/termin-formular";
@@ -92,7 +92,7 @@ async function VerwaltungInhalt({ searchParams }: { searchParams: PageProps<"/ve
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="text-[15px] font-semibold">{t.titel}</span>
                       <span className="text-[13px] text-muted">
-                        {datumKurz(t.datum)} · {uhrzeit(t.beginn)} Uhr{t.ort ? ` · ${t.ort}` : ""}
+                        {datumKurzBereich(t.datum, t.bis_datum)} · {beginnText(t.beginn)}{t.ort ? ` · ${t.ort}` : ""}
                       </span>
                       {sitzung.istAdmin && v && (
                         <span className="mt-1">

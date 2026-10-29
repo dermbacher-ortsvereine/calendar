@@ -282,7 +282,7 @@ export default function RaeumePage(props: PageProps<"/raeume">) {
   return (
     <main className="mx-auto flex max-w-[1240px] flex-col gap-[22px] px-4 py-7 sm:px-6">
       <div className="flex flex-col gap-1.5">
-        <h1 className="font-display text-[26px] font-bold sm:text-[30px]">Räume in der Turnhalle</h1>
+        <h1 className="font-display text-[26px] font-bold sm:text-[30px]">Räume in der Mehrzweckhalle</h1>
         <p className="text-base text-muted-strong">Belegung ansehen und einen Raum für eure Veranstaltung reservieren.</p>
       </div>
       <Suspense fallback={<div className="h-[520px] animate-pulse rounded-card bg-surface" />}>

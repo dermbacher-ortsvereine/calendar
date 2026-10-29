@@ -1,19 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { terminSpeichern, type FormularZustand } from "@/app/verwaltung/actions";
 import { feldKlasse, fehlerBox, labelKlasse, primaerKnopf, sekundaerKnopf } from "@/components/formular/stile";
 import type { Termin } from "@/lib/daten";
 import type { TerminEingabe } from "@/lib/termin-validierung";
 
-const ORTE = ["Turnhalle", "Stüffjen", "Schulungsraum", "Dorfplatz", "Sportplatz", "Kirche", "Feuerwehrgerätehaus"];
+const ORTE = ["Mehrzweckhalle", "Stüffjen", "Schulungsraum", "Dorfplatz", "Sportplatz", "Kirche", "Feuerwehrgerätehaus"];
 
 function ausTermin(t: Termin | null, veranstalterId: string): TerminEingabe {
   return {
     titel: t?.titel ?? "",
     datum: t?.datum ?? "",
-    beginn: t?.beginn.slice(0, 5) ?? "",
+    bis_datum: t?.bis_datum ?? "",
+    ganztaegig: t && !t.beginn ? "ja" : "",
+    beginn: t?.beginn?.slice(0, 5) ?? "",
     ende: t?.ende?.slice(0, 5) ?? "",
     ort: t?.ort ?? "",
     beschreibung: t?.beschreibung ?? "",
@@ -44,6 +46,8 @@ export function TerminFormular({
   const [zustand, aktion, laeuft] = useActionState<FormularZustand, FormData>(terminSpeichern, { version: 0 });
   const w = zustand.werte ?? ausTermin(termin, eigenerVeranstalter);
   const f = zustand.feldFehler ?? {};
+  // Bei einem Fehler wird das Formular per key neu aufgebaut; der Startwert kommt dann aus den Eingaben.
+  const [ganztaegig, setGanztaegig] = useState(w.ganztaegig === "ja");
   const fehlerProps = (feld: keyof TerminEingabe) =>
     f[feld] ? { "aria-invalid": true, "aria-describedby": `fehler-${feld}` } : {};
   const rahmen = (feld: keyof TerminEingabe) => (f[feld] ? " border-[#B3261E] border-2" : "");
@@ -95,7 +99,7 @@ export function TerminFormular({
         <FeldFehler id="fehler-titel" text={f.titel} />
       </label>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className={labelKlasse}>
           Datum
           <input
@@ -109,29 +113,58 @@ export function TerminFormular({
           <FeldFehler id="fehler-datum" text={f.datum} />
         </label>
         <label className={labelKlasse}>
-          Beginn
+          Bis (nur bei mehrtägigen Terminen)
           <input
-            type="time"
-            name="beginn"
-            defaultValue={w.beginn}
-            required
-            className={feldKlasse + " px-2.5 text-[15px]" + rahmen("beginn")}
-            {...fehlerProps("beginn")}
+            type="date"
+            name="bis_datum"
+            defaultValue={w.bis_datum}
+            min={w.datum || undefined}
+            className={feldKlasse + " px-2.5 text-[15px]" + rahmen("bis_datum")}
+            {...fehlerProps("bis_datum")}
           />
-          <FeldFehler id="fehler-beginn" text={f.beginn} />
-        </label>
-        <label className={labelKlasse}>
-          Ende (optional)
-          <input
-            type="time"
-            name="ende"
-            defaultValue={w.ende}
-            className={feldKlasse + " px-2.5 text-[15px]" + rahmen("ende")}
-            {...fehlerProps("ende")}
-          />
-          <FeldFehler id="fehler-ende" text={f.ende} />
+          <FeldFehler id="fehler-bis_datum" text={f.bis_datum} />
         </label>
       </div>
+
+      <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px] font-semibold">
+        <input
+          type="checkbox"
+          name="ganztaegig"
+          value="ja"
+          checked={ganztaegig}
+          onChange={(e) => setGanztaegig(e.target.checked)}
+          className="size-5 accent-accent"
+        />
+        Ganztägig (ohne Uhrzeit)
+      </label>
+
+      {!ganztaegig && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className={labelKlasse}>
+            Beginn
+            <input
+              type="time"
+              name="beginn"
+              defaultValue={w.beginn}
+              required
+              className={feldKlasse + " px-2.5 text-[15px]" + rahmen("beginn")}
+              {...fehlerProps("beginn")}
+            />
+            <FeldFehler id="fehler-beginn" text={f.beginn} />
+          </label>
+          <label className={labelKlasse}>
+            Ende (optional)
+            <input
+              type="time"
+              name="ende"
+              defaultValue={w.ende}
+              className={feldKlasse + " px-2.5 text-[15px]" + rahmen("ende")}
+              {...fehlerProps("ende")}
+            />
+            <FeldFehler id="fehler-ende" text={f.ende} />
+          </label>
+        </div>
+      )}
 
       <label className={labelKlasse}>
         Ort
@@ -140,7 +173,7 @@ export function TerminFormular({
           name="ort"
           list="orte"
           defaultValue={w.ort}
-          placeholder="Turnhalle, Stüffjen, Dorfplatz …"
+          placeholder="Mehrzweckhalle, Stüffjen, Dorfplatz …"
           maxLength={120}
           className={feldKlasse + rahmen("ort")}
           {...fehlerProps("ort")}
