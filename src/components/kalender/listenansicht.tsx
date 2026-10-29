@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { KalenderLink } from "@/components/kalender/kalender-link";
 import type { Termin, Veranstalter } from "@/lib/daten";
 import { datumKurz, monatsName, monatVon, tagesNummer, wochentagKurz, zeitraumText } from "@/lib/datum";
 import { kalenderHref, type KalenderZustand } from "@/lib/kalender-url";
@@ -42,9 +42,8 @@ export function Listenansicht({
               const ausgewaehlt = zustand.termin === t.id;
               return (
                 <li key={t.id}>
-                  <Link
+                  <KalenderLink
                     href={kalenderHref(zustand, { termin: t.id })}
-                    scroll={false}
                     aria-current={ausgewaehlt ? "true" : undefined}
                     className={`flex w-full items-center gap-4 border-t border-[#EEF1EF] px-4 py-3 text-left sm:px-5 text-ink no-underline hover:bg-accent-hover hover:text-ink ${
                       ausgewaehlt ? "bg-accent-hover" : "bg-surface"
@@ -72,7 +71,7 @@ export function Listenansicht({
                     <span className="hidden sm:inline">
                       <VeranstalterTag v={v} />
                     </span>
-                  </Link>
+                  </KalenderLink>
                 </li>
               );
             })}

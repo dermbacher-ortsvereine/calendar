@@ -50,3 +50,27 @@
     outline-offset: 2px;
   }
 }
+
+/* Ladebalken (src/components/ladebalken.tsx): erscheint erst nach kurzer Verzögerung,
+   damit schnelle Seitenwechsel nicht flackern. */
+@keyframes ladebalken {
+  from {
+    width: 0;
+  }
+  to {
+    width: 90%;
+  }
+}
+
+.ladebalken {
+  width: 0;
+  animation: ladebalken 8s cubic-bezier(0.1, 0.7, 0.2, 1) 120ms forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ladebalken {
+    width: 100%;
+    animation: none;
+    opacity: 0.6;
+  }
+}

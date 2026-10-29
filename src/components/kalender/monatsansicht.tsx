@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { KalenderLink } from "@/components/kalender/kalender-link";
 import type { Termin, Veranstalter } from "@/lib/daten";
 import { beginnText, datumKurzBereich, monatsRaster, tagesNummer, uhrzeit, WOCHENTAGE_KOPF, type Monat } from "@/lib/datum";
 import { kalenderHref, type KalenderZustand } from "@/lib/kalender-url";
@@ -76,10 +76,9 @@ export function Monatsansicht({
               // Uhrzeit nur, wo der Termin beginnt; sonst (ganztägig, Fortsetzung) das Kürzel, damit am Handy etwas lesbar bleibt
               const kurz = t.beginn && !weiterVorher ? uhrzeit(t.beginn) : v.kuerzel;
               return (
-                <Link
+                <KalenderLink
                   key={t.id}
                   href={kalenderHref(zustand, { termin: t.id })}
-                  scroll={false}
                   aria-label={`${t.titel}, ${datumKurzBereich(t.datum, t.bis_datum)}, ${beginnText(t.beginn)}, ${v.name}`}
                   aria-current={ausgewaehlt ? "true" : undefined}
                   className={`relative block min-w-0 truncate px-1.5 py-1 text-left text-xs leading-[1.3] font-medium no-underline ${
@@ -95,7 +94,7 @@ export function Monatsansicht({
                 >
                   <span className="text-[11px] font-bold sm:text-xs">{kurz}</span>
                   <span className="hidden sm:inline"> {t.titel}</span>
-                </Link>
+                </KalenderLink>
               );
             })}
             {weitere.map((anzahl, i) =>
