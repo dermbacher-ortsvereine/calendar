@@ -64,6 +64,7 @@ export function KalenderAnsicht({
   fenster,
   heute,
   einzelTermin,
+  bearbeiter,
 }: {
   veranstalterListe: Veranstalter[];
   termine: Termin[];
@@ -71,6 +72,8 @@ export function KalenderAnsicht({
   heute: string;
   /** per Link geöffneter Termin außerhalb des Fensters */
   einzelTermin: Termin | null;
+  /** angemeldeter Veranstalter bzw. Admin: darf eigene Termine direkt bearbeiten */
+  bearbeiter: { istAdmin: boolean; veranstalterId: string | null } | null;
 }) {
   const router = useRouter();
   const [laedt, startTransition] = useTransition();
@@ -98,6 +101,8 @@ export function KalenderAnsicht({
   const gewaehltV = gewaehlt ? veranstalter.get(gewaehlt.veranstalter_id) : undefined;
   const schliessenHref = kalenderHref(zustand, { termin: null });
   const beschaeftigt = laedt || !abgedeckt;
+  const darfBearbeiten =
+    !!gewaehlt && !!bearbeiter && (bearbeiter.istAdmin || bearbeiter.veranstalterId === gewaehlt.veranstalter_id);
 
   return (
     <main className="mx-auto flex max-w-[1240px] flex-col gap-[18px] px-4 py-6 sm:px-6">
@@ -179,6 +184,7 @@ export function KalenderAnsicht({
                 termin={gewaehlt}
                 veranstalter={gewaehltV}
                 titelId="termin-titel"
+                bearbeiten={darfBearbeiten ? { zurueck: schliessenHref } : undefined}
                 schliessen={
                   <KalenderLink
                     href={schliessenHref}

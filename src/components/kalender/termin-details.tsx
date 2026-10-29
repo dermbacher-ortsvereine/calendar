@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import type { Termin, Veranstalter } from "@/lib/daten";
 import { datumLangBereich, zeitraumText } from "@/lib/datum";
-import { CalendarIcon, ClockIcon, DownloadIcon, PinIcon } from "@/components/icons";
+import Link from "next/link";
+import { LoeschenKnopf } from "@/app/verwaltung/loeschen-knopf";
+import { CalendarIcon, ClockIcon, DownloadIcon, PencilIcon, PinIcon } from "@/components/icons";
 import { VeranstalterLogo, VeranstalterTag } from "@/components/kalender/veranstalter-tag";
 
 function Zeile({ icon, children }: { icon: ReactNode; children: ReactNode }) {
@@ -20,12 +22,15 @@ export function TerminDetails({
   titelId,
   schliessen,
   ueberschrift = "h2",
+  bearbeiten,
 }: {
   termin: Termin;
   veranstalter: Veranstalter;
   titelId?: string;
   schliessen?: ReactNode;
   ueberschrift?: "h1" | "h2";
+  /** nur für den eigenen Veranstalter bzw. den Admin: Ziel nach dem Löschen */
+  bearbeiten?: { zurueck: string };
 }) {
   const Titel = ueberschrift;
   return (
@@ -65,6 +70,18 @@ export function TerminDetails({
         <DownloadIcon className="size-[18px]" />
         In meinen Kalender (.ics)
       </a>
+      {bearbeiten && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-line-soft pt-3.5">
+          <Link
+            href={`/verwaltung?bearbeiten=${termin.id}`}
+            className="mr-auto inline-flex min-h-11 items-center gap-2 rounded-control border border-line bg-surface px-3.5 text-[15px] font-semibold text-ink no-underline hover:bg-accent-hover hover:text-ink"
+          >
+            <PencilIcon className="size-[18px]" />
+            Bearbeiten
+          </Link>
+          <LoeschenKnopf id={termin.id} titel={termin.titel} zurueck={bearbeiten.zurueck} />
+        </div>
+      )}
     </div>
   );
 }

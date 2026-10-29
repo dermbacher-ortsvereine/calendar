@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getTermin, getVeranstalter } from "@/lib/daten";
+import { getSitzung } from "@/lib/sitzung";
 import { datumLangBereich, zeitraumText } from "@/lib/datum";
 import { ChevronLeftIcon } from "@/components/icons";
 import { TerminDetails } from "@/components/kalender/termin-details";
@@ -21,12 +22,13 @@ export async function generateMetadata(props: PageProps<"/termin/[id]">): Promis
 
 async function TerminInhalt({ params }: { params: PageProps<"/termin/[id]">["params"] }) {
   const { id } = await params;
-  const [termin, veranstalter] = await Promise.all([getTermin(id), getVeranstalter()]);
+  const [termin, veranstalter, sitzung] = await Promise.all([getTermin(id), getVeranstalter(), getSitzung()]);
   const v = termin && veranstalter.find((x) => x.id === termin.veranstalter_id);
   if (!termin || !v) notFound();
+  const darfBearbeiten = !!sitzung && (sitzung.istAdmin || sitzung.veranstalter?.id === termin.veranstalter_id);
   return (
     <div className="rounded-card border border-line bg-surface p-[22px]">
-      <TerminDetails termin={termin} veranstalter={v} ueberschrift="h1" />
+      <TerminDetails termin={termin} veranstalter={v} ueberschrift="h1" bearbeiten={darfBearbeiten ? { zurueck: "/" } : undefined} />
     </div>
   );
 }

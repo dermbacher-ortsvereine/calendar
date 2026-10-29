@@ -37,6 +37,7 @@ async function konfliktText(raumId: string, zeitraum: string): Promise<string> {
   return teile.length ? ` Bereits belegt: ${teile.join("; ")}.` : "";
 }
 
+/** Legt eine Reservierung an oder ändert sie (mit Feld `id`). */
 export async function reservieren(vorher: ReservierungZustand, formData: FormData): Promise<ReservierungZustand> {
   const version = vorher.version + 1;
   const werte = eingabeAusFormData(formData);
@@ -55,13 +56,15 @@ export async function reservieren(vorher: ReservierungZustand, formData: FormDat
   }
 
   const supabase = await createSessionClient();
-  const { error } = await supabase
-    .from("reservierungen")
-    .insert({ ...pruefung.daten, veranstalter_id: veranstalterId });
+  const id = String(formData.get("id") ?? "");
+  const daten = { ...pruefung.daten, veranstalter_id: veranstalterId };
+  const { data, error } = id
+    ? await supabase.from("reservierungen").update(daten).eq("id", id).select("id")
+    : await supabase.from("reservierungen").insert(daten).select("id");
 
-  if (error) {
+  if (error || !data?.length) {
     // 23P01 = exclusion_violation: Überschneidung mit einer bestehenden Reservierung
-    if (error.code === "23P01") {
+    if (error?.code === "23P01") {
       const raum = raeume.find((r) => r.id === werte.raum_id)?.name ?? "Der Raum";
       return {
         fehler: `${raum} ist in dieser Zeit schon reserviert.${await konfliktText(werte.raum_id, pruefung.daten.zeitraum)}`,
@@ -69,12 +72,18 @@ export async function reservieren(vorher: ReservierungZustand, formData: FormDat
         version,
       };
     }
-    return { fehler: "Die Reservierung konnte nicht gespeichert werden. Bitte später noch einmal versuchen.", werte, version };
+    return {
+      fehler: id
+        ? "Die Reservierung konnte nicht gespeichert werden. Vielleicht wurde sie storniert oder gehört einem anderen Veranstalter."
+        : "Die Reservierung konnte nicht gespeichert werden. Bitte später noch einmal versuchen.",
+      werte,
+      version,
+    };
   }
 
   updateTag(TAG_RESERVIERUNGEN);
-  const q = new URLSearchParams({ raum: werte.raum_id, woche: werte.datum, reserviert: "1" });
-  redirect(`/raeume?${q}#reservieren`);
+  const q = new URLSearchParams({ raum: werte.raum_id, woche: werte.datum, [id ? "geaendert" : "reserviert"]: "1" });
+  redirect(`/raeume?${q}#belegung`);
 }
 
 export async function reservierungLoeschen(formData: FormData) {
@@ -91,5 +100,5 @@ export async function reservierungLoeschen(formData: FormData) {
     woche: String(formData.get("woche") ?? ""),
     [data?.length ? "storniert" : "fehler"]: "1",
   });
-  redirect(`/raeume?${q}#reservieren`);
+  redirect(`/raeume?${q}#belegung`);
 }
