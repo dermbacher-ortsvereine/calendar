@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { reservieren, type ReservierungZustand } from "@/app/raeume/actions";
-import { feldKlasse, fehlerBox, labelKlasse, primaerKnopf } from "@/components/formular/stile";
+import { feldKlasse, fehlerBox, labelKlasse, primaerKnopf, sekundaerKnopf } from "@/components/formular/stile";
 import type { ReservierungEingabe } from "@/lib/reservierung";
 
 const feld = `${feldKlasse} min-h-11 text-[15px]`;
@@ -13,6 +14,7 @@ export function ReservierungFormular({
   datum,
   veranstalterAuswahl,
   eigenerVeranstalter,
+  bearbeiten,
 }: {
   raeume: { id: string; name: string }[];
   raumId: string;
@@ -20,9 +22,11 @@ export function ReservierungFormular({
   /** nur für den Admin */
   veranstalterAuswahl: { id: string; name: string }[] | null;
   eigenerVeranstalter: { id: string; name: string } | null;
+  /** bestehende Reservierung ändern; `abbrechen`: Link zurück zum leeren Formular */
+  bearbeiten?: { id: string; werte: ReservierungEingabe; abbrechen: string };
 }) {
   const [zustand, aktion, laeuft] = useActionState<ReservierungZustand, FormData>(reservieren, { version: 0 });
-  const w: ReservierungEingabe = zustand.werte ?? {
+  const w: ReservierungEingabe = zustand.werte ?? bearbeiten?.werte ?? {
     raum_id: raumId,
     datum,
     von: "",
@@ -45,6 +49,7 @@ export function ReservierungFormular({
 
   return (
     <form key={zustand.version} action={aktion} className="flex flex-col gap-3.5" noValidate>
+      {bearbeiten && <input type="hidden" name="id" value={bearbeiten.id} />}
       {zustand.fehler && (
         <p role="alert" className={fehlerBox}>
           {zustand.fehler}
@@ -123,9 +128,16 @@ export function ReservierungFormular({
           {fehler("telefon")}
         </label>
       </div>
-      <button type="submit" disabled={laeuft} className={primaerKnopf}>
-        {laeuft ? "Wird geprüft …" : "Reservieren"}
-      </button>
+      <div className="flex flex-wrap gap-2.5">
+        <button type="submit" disabled={laeuft} className={`${primaerKnopf} flex-1`}>
+          {laeuft ? "Wird geprüft …" : bearbeiten ? "Speichern" : "Reservieren"}
+        </button>
+        {bearbeiten && (
+          <Link href={bearbeiten.abbrechen} scroll={false} className={sekundaerKnopf}>
+            Abbrechen
+          </Link>
+        )}
+      </div>
       <p className="text-[13px] leading-[1.45] text-muted">
         Überschneidungen werden automatisch geprüft. Ansprechpartner und Telefon sind nicht öffentlich sichtbar.
       </p>

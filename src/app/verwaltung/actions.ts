@@ -3,6 +3,7 @@
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { TAG_TERMINE } from "@/lib/daten";
+import { sichererPfad } from "@/lib/pfad";
 import { getSitzung } from "@/lib/sitzung";
 import { createSessionClient } from "@/lib/supabase/server";
 import { eingabeAusFormData, pruefeTermin, type TerminEingabe } from "@/lib/termin-validierung";
@@ -64,5 +65,8 @@ export async function terminLoeschen(formData: FormData) {
   const { data } = await supabase.from("termine").delete().eq("id", id).select("id");
 
   updateTag(TAG_TERMINE);
+  // Aus dem Kalender gelöscht: dorthin zurück (der Termin ist dann einfach weg).
+  const zurueck = formData.get("zurueck");
+  if (zurueck && data?.length) redirect(sichererPfad(zurueck));
   redirect(data?.length ? "/verwaltung?geloescht=1" : "/verwaltung?fehler=loeschen");
 }

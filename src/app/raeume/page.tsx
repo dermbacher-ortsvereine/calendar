@@ -4,27 +4,27 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { erfolgBox, fehlerBox, primaerKnopf } from "@/components/formular/stile";
-import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
+import { ChevronLeftIcon, ChevronRightIcon, PencilIcon } from "@/components/icons";
 import { getBelegung, getRaeume, getVeranstalter, type Belegung, type Veranstalter } from "@/lib/daten";
 import { datumKurz, heute, plusTage, tagMonat, wochentagLang } from "@/lib/datum";
 import { inBerlin, parseZeitraum, wochenMontag } from "@/lib/reservierung";
-import { getSitzung } from "@/lib/sitzung";
+import { getSitzung, type Sitzung } from "@/lib/sitzung";
 import { createSessionClient } from "@/lib/supabase/server";
 import { ReservierungFormular } from "@/app/raeume/reservierung-formular";
 import { StornierenKnopf } from "@/app/raeume/stornieren-knopf";
 
 export const metadata: Metadata = { title: "Räume" };
 
-type Params = Awaited<PageProps<"/raeume">["searchParams"]>;
 const erster = (w: string | string[] | undefined) => (Array.isArray(w) ? w[0] : w);
 const istTag = (w: string | undefined): w is string => !!w && /^\d{4}-\d{2}-\d{2}$/.test(w);
 
-type Zustand = { raum: string; woche: string; datum: string | null };
+type Zustand = { raum: string; woche: string; datum: string | null; bearbeiten: string | null };
 
 function raeumeHref(z: Zustand, aenderung: Partial<Zustand> = {}, hash = "") {
   const n = { ...z, ...aenderung };
   const q = new URLSearchParams({ raum: n.raum, woche: n.woche });
   if (n.datum) q.set("datum", n.datum);
+  if (n.bearbeiten) q.set("bearbeiten", n.bearbeiten);
   return `/raeume?${q}${hash}`;
 }
 
@@ -60,12 +60,19 @@ function eintraege(belegung: Belegung[], veranstalter: Map<string, Veranstalter>
     .sort((a, b) => a.start - b.start);
 }
 
+// 32 px sichtbar, Klickfläche per ::after auf 44 px vergrößert
+const eintragKnopf =
+  "relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md bg-surface/70 after:absolute after:-inset-1.5 hover:bg-surface";
+
+const darfAendern = (sitzung: Sitzung | null, veranstalterId: string) =>
+  !!sitzung && (sitzung.istAdmin || sitzung.veranstalter?.id === veranstalterId);
+
 const navKnopf =
   "flex size-11 items-center justify-center rounded-control border border-line-input bg-surface text-ink hover:bg-accent-hover hover:text-ink";
 
 async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume">["searchParams"] }) {
   const params = await searchParams;
-  const [raeume, veranstalterListe] = await Promise.all([getRaeume(), getVeranstalter()]);
+  const [raeume, veranstalterListe, sitzung] = await Promise.all([getRaeume(), getVeranstalter(), getSitzung()]);
   const veranstalter = new Map(veranstalterListe.map((v) => [v.id, v]));
 
   await io(); // "heute" erst zur Anfragezeit bestimmen, nicht beim Prerendern
@@ -75,7 +82,22 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
   const raumParam = erster(params.raum);
   const raum = raeume.find((r) => r.id === raumParam) ?? raeume[0];
   const datumParam = erster(params.datum);
-  const zustand: Zustand = { raum: raum.id, woche: montag, datum: istTag(datumParam) ? datumParam : null };
+  const bearbeitenParam = erster(params.bearbeiten);
+  const zustand: Zustand = {
+    raum: raum.id,
+    woche: montag,
+    datum: istTag(datumParam) ? datumParam : null,
+    bearbeiten: sitzung && bearbeitenParam ? bearbeitenParam : null,
+  };
+  const meldung = erster(params.reserviert)
+    ? { ok: true, text: "Reservierung eingetragen – sie erscheint jetzt im Belegungsplan." }
+    : erster(params.geaendert)
+      ? { ok: true, text: "Reservierung geändert." }
+      : erster(params.storniert)
+        ? { ok: true, text: "Reservierung storniert." }
+        : erster(params.fehler)
+          ? { ok: false, text: "Die Reservierung konnte nicht storniert werden." }
+          : null;
 
   const belegung = eintraege(await getBelegung(montag, plusTage(montag, 7)), veranstalter, montag);
   const proRaum = (id: string) => belegung.filter((b) => b.raumId === id);
@@ -91,7 +113,7 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
           return (
             <Link
               key={r.id}
-              href={raeumeHref(zustand, { raum: r.id })}
+              href={raeumeHref(zustand, { raum: r.id, bearbeiten: null })}
               scroll={false}
               aria-current={an ? "true" : undefined}
               className={`flex items-center gap-4 rounded-card border-2 bg-surface p-[18px] text-ink no-underline hover:text-ink ${
@@ -116,23 +138,28 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
       </nav>
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <section aria-labelledby="belegung-titel" className="flex min-w-0 flex-col gap-4 rounded-card border border-line bg-surface p-4 sm:p-[18px]">
+        <section id="belegung" aria-labelledby="belegung-titel" className="flex min-w-0 scroll-mt-4 flex-col gap-4 rounded-card border border-line bg-surface p-4 sm:p-[18px]">
           <div className="flex flex-wrap items-center justify-between gap-2.5">
             <h2 id="belegung-titel" className="font-display text-xl font-bold">
               Belegung {raum.name}
             </h2>
             <div className="flex items-center gap-2">
-              <Link href={raeumeHref(zustand, { woche: plusTage(montag, -7), datum: null })} scroll={false} aria-label="Vorherige Woche" className={navKnopf}>
+              <Link href={raeumeHref(zustand, { woche: plusTage(montag, -7), datum: null, bearbeiten: null })} scroll={false} aria-label="Vorherige Woche" className={navKnopf}>
                 <ChevronLeftIcon className="size-[18px]" />
               </Link>
               <span className="min-w-[170px] text-center text-[15px] font-bold sm:min-w-[190px]" aria-live="polite">
                 {tagMonat(montag)} – {tagMonat(sonntag)} {sonntag.slice(0, 4)}
               </span>
-              <Link href={raeumeHref(zustand, { woche: plusTage(montag, 7), datum: null })} scroll={false} aria-label="Nächste Woche" className={navKnopf}>
+              <Link href={raeumeHref(zustand, { woche: plusTage(montag, 7), datum: null, bearbeiten: null })} scroll={false} aria-label="Nächste Woche" className={navKnopf}>
                 <ChevronRightIcon className="size-[18px]" />
               </Link>
             </div>
           </div>
+          {meldung && (
+            <p role={meldung.ok ? "status" : "alert"} className={meldung.ok ? erfolgBox : fehlerBox}>
+              {meldung.text}
+            </p>
+          )}
           <ol className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {tage.map((tag) => {
               const items = proRaum(raum.id).filter((b) => b.tag === tag);
@@ -152,21 +179,46 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
                     </span>
                     <span className="text-[13px] text-muted">{tagMonat(tag)}</span>
                   </div>
-                  {items.map((b) => (
-                    <div
-                      key={b.id}
-                      className="flex flex-col gap-0.5 rounded-lg p-2 break-words"
-                      style={{ background: b.v?.farbe_hg ?? "#F3F5F3", color: b.v?.farbe ?? "#17201B" }}
-                    >
-                      <span className="text-[13px] font-bold">{b.zeit}</span>
-                      <span className="text-[13px] font-semibold">{b.v?.name ?? "Belegt"}</span>
-                      {b.zweck && <span className="text-xs text-muted-strong">{b.zweck}</span>}
-                    </div>
-                  ))}
+                  {items.map((b) => {
+                    const beschreibung = `${datumKurz(b.tag)}, ${b.zeit} Uhr`;
+                    return (
+                      <div
+                        key={b.id}
+                        className={`flex flex-col gap-0.5 rounded-lg p-2 break-words ${
+                          zustand.bearbeiten === b.id ? "outline-2 outline-offset-1 outline-current" : ""
+                        }`}
+                        style={{ background: b.v?.farbe_hg ?? "#F3F5F3", color: b.v?.farbe ?? "#17201B" }}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-x-1.5 gap-y-1">
+                          <span className="text-[13px] font-bold">{b.zeit}</span>
+                          {darfAendern(sitzung, b.v?.id ?? "") && (
+                            <span className="-mt-0.5 -mr-0.5 ml-auto flex gap-1.5">
+                              <Link
+                                href={raeumeHref(zustand, { bearbeiten: b.id, datum: null }, "#reservieren")}
+                                aria-label={`Reservierung ${beschreibung} bearbeiten`}
+                                className={`${eintragKnopf} text-current hover:text-current`}
+                              >
+                                <PencilIcon className="size-4" />
+                              </Link>
+                              <StornierenKnopf
+                                id={b.id}
+                                beschreibung={beschreibung}
+                                raum={zustand.raum}
+                                woche={zustand.woche}
+                                className={`${eintragKnopf} text-[#B3261E]`}
+                              />
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[13px] font-semibold">{b.v?.name ?? "Belegt"}</span>
+                        {b.zweck && <span className="text-xs text-muted-strong">{b.zweck}</span>}
+                      </div>
+                    );
+                  })}
                   {items.length === 0 && <span className="text-[13px] text-muted">Noch frei</span>}
                   {!vorbei && (
                     <Link
-                      href={raeumeHref(zustand, { datum: tag }, "#reservieren")}
+                      href={raeumeHref(zustand, { datum: tag, bearbeiten: null }, "#reservieren")}
                       aria-label={`${raum.name} am ${datumKurz(tag)} reservieren`}
                       className="mt-auto flex min-h-10 items-center justify-center rounded-lg border-[1.5px] border-dashed border-[#9FB3A6] text-[13px] font-semibold text-accent no-underline hover:bg-surface"
                     >
@@ -180,9 +232,9 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
         </section>
 
         <aside id="reservieren" className="flex min-w-0 scroll-mt-4 flex-col gap-3.5 rounded-card border border-line bg-surface p-5 sm:p-[22px]">
-          <h2 className="font-display text-xl font-bold">Raum reservieren</h2>
+          <h2 className="font-display text-xl font-bold">{zustand.bearbeiten ? "Reservierung bearbeiten" : "Raum reservieren"}</h2>
           <Suspense fallback={<div className="h-96 animate-pulse rounded-control bg-bg" />}>
-            <ReservierungBereich zustand={zustand} params={params} raeume={raeume.map(({ id, name }) => ({ id, name }))} veranstalterListe={veranstalterListe} />
+            <ReservierungBereich zustand={zustand} raeume={raeume.map(({ id, name }) => ({ id, name }))} veranstalterListe={veranstalterListe} />
           </Suspense>
         </aside>
       </div>
@@ -192,12 +244,10 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
 
 async function ReservierungBereich({
   zustand,
-  params,
   raeume,
   veranstalterListe,
 }: {
   zustand: Zustand;
-  params: Params;
   raeume: { id: string; name: string }[];
   veranstalterListe: Veranstalter[];
 }) {
@@ -219,63 +269,49 @@ async function ReservierungBereich({
     );
   }
 
-  const supabase = await createSessionClient();
-  const { data: eigene } = await supabase
-    .from("reservierungen")
-    .select("id, raum_id, veranstalter_id, zeitraum, zweck")
-    .overlaps("zeitraum", `[${new Date().toISOString()},)`)
-    .order("zeitraum")
-    .limit(sitzung.istAdmin ? 50 : 20);
-  const raumName = new Map(raeume.map((r) => [r.id, r.name]));
-  const vName = new Map(veranstalterListe.map((v) => [v.id, v.name]));
-
-  const meldung = erster(params.reserviert)
-    ? { ok: true, text: "Reservierung eingetragen – sie erscheint jetzt im Belegungsplan." }
-    : erster(params.storniert)
-      ? { ok: true, text: "Reservierung storniert." }
-      : erster(params.fehler)
-        ? { ok: false, text: "Die Reservierung konnte nicht storniert werden." }
-        : null;
+  // RLS liefert nur eigene Reservierungen (Admin: alle) – fremde IDs ergeben hier nichts.
+  const { data: r } = zustand.bearbeiten
+    ? await (await createSessionClient())
+        .from("reservierungen")
+        .select("id, raum_id, veranstalter_id, zeitraum, zweck, ansprechpartner, telefon")
+        .eq("id", zustand.bearbeiten)
+        .maybeSingle()
+    : { data: null };
+  const z = r && typeof r.zeitraum === "string" ? parseZeitraum(r.zeitraum) : null;
+  const bearbeiten =
+    r && z
+      ? {
+          id: r.id,
+          abbrechen: raeumeHref(zustand, { bearbeiten: null }, "#belegung"),
+          werte: {
+            raum_id: r.raum_id,
+            datum: inBerlin(z.start).datum,
+            von: inBerlin(z.start).zeit,
+            bis: inBerlin(z.ende).zeit,
+            zweck: r.zweck ?? "",
+            ansprechpartner: r.ansprechpartner ?? "",
+            telefon: r.telefon ?? "",
+            veranstalter_id: r.veranstalter_id,
+          },
+        }
+      : undefined;
 
   return (
     <>
-      {meldung && (
-        <p role={meldung.ok ? "status" : "alert"} className={meldung.ok ? erfolgBox : fehlerBox}>
-          {meldung.text}
+      {zustand.bearbeiten && !bearbeiten && (
+        <p role="alert" className={fehlerBox}>
+          Diese Reservierung kann hier nicht bearbeitet werden.
         </p>
       )}
       <ReservierungFormular
-        key={`${zustand.raum}-${zustand.datum}`}
+        key={`${zustand.raum}-${zustand.datum}-${bearbeiten?.id}`}
         raeume={raeume}
         raumId={zustand.raum}
         datum={zustand.datum ?? ""}
         eigenerVeranstalter={sitzung.veranstalter}
         veranstalterAuswahl={sitzung.istAdmin ? veranstalterListe.map(({ id, name }) => ({ id, name })) : null}
+        bearbeiten={bearbeiten}
       />
-      <div className="mt-2 flex flex-col gap-1 border-t border-line pt-4">
-        <h3 className="mb-1 text-[15px] font-bold">{sitzung.istAdmin ? "Alle kommenden Reservierungen" : "Eure Reservierungen"}</h3>
-        {!eigene?.length && <p className="text-sm text-muted">Keine kommenden Reservierungen.</p>}
-        <ul>
-          {(eigene ?? []).map((r) => {
-            const z = typeof r.zeitraum === "string" ? parseZeitraum(r.zeitraum) : null;
-            if (!z) return null;
-            const s = inBerlin(z.start);
-            const e = inBerlin(z.ende);
-            const text = `${raumName.get(r.raum_id) ?? r.raum_id}, ${datumKurz(s.datum)}, ${s.zeit}–${e.zeit} Uhr`;
-            return (
-              <li key={r.id} className="flex flex-wrap items-center gap-2 border-t border-[#EEF1EF] py-2.5">
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-sm font-semibold">{text}</span>
-                  <span className="text-[13px] text-muted">
-                    {[sitzung.istAdmin ? vName.get(r.veranstalter_id) : null, r.zweck].filter(Boolean).join(" · ") || "Ohne Angabe"}
-                  </span>
-                </span>
-                <StornierenKnopf id={r.id} beschreibung={text} raum={zustand.raum} woche={zustand.woche} />
-              </li>
-            );
-          })}
-        </ul>
-      </div>
     </>
   );
 }

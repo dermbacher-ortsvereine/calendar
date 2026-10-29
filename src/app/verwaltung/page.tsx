@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { erfolgBox, fehlerBox } from "@/components/formular/stile";
+import { PencilIcon } from "@/components/icons";
 import { VeranstalterTag } from "@/components/kalender/veranstalter-tag";
 import { getTermin, getTermineZwischen, getVeranstalter } from "@/lib/daten";
 import { beginnText, datumKurzBereich, heute, plusTage } from "@/lib/datum";
@@ -105,9 +106,7 @@ async function VerwaltungInhalt({ searchParams }: { searchParams: PageProps<"/ve
                       aria-label={`„${t.titel}“ bearbeiten`}
                       className="flex size-11 shrink-0 items-center justify-center rounded-control border border-line bg-surface text-ink hover:bg-accent-hover hover:text-ink"
                     >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M4 20h4L19 9l-4-4L4 16v4z" />
-                      </svg>
+                      <PencilIcon className="size-[18px]" />
                     </Link>
                     <LoeschenKnopf id={t.id} titel={t.titel} />
                   </li>

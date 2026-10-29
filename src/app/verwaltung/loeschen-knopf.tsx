@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { terminLoeschen } from "@/app/verwaltung/actions";
+import { TrashIcon } from "@/components/icons";
 
 const iconKnopf =
   "flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-control border border-line bg-surface hover:bg-accent-hover";
@@ -20,8 +21,8 @@ function Bestaetigen() {
   );
 }
 
-/** Löschen mit Rückfrage direkt in der Zeile (kein Browser-Dialog). */
-export function LoeschenKnopf({ id, titel }: { id: string; titel: string }) {
+/** Löschen mit Rückfrage direkt in der Zeile (kein Browser-Dialog). `zurueck`: Seite nach dem Löschen. */
+export function LoeschenKnopf({ id, titel, zurueck }: { id: string; titel: string; zurueck?: string }) {
   const [frage, setFrage] = useState(false);
 
   if (!frage) {
@@ -32,9 +33,7 @@ export function LoeschenKnopf({ id, titel }: { id: string; titel: string }) {
         aria-label={`„${titel}“ löschen`}
         className={`${iconKnopf} text-[#B3261E]`}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
-        </svg>
+        <TrashIcon className="size-[18px]" />
       </button>
     );
   }
@@ -42,6 +41,7 @@ export function LoeschenKnopf({ id, titel }: { id: string; titel: string }) {
   return (
     <form action={terminLoeschen} className="flex w-full flex-wrap items-center gap-2 rounded-control bg-[#FAE6E4] p-2.5">
       <input type="hidden" name="id" value={id} />
+      {zurueck && <input type="hidden" name="zurueck" value={zurueck} />}
       <span role="alert" className="mr-auto text-sm font-semibold text-[#8C1D17]">
         „{titel}“ wirklich löschen?
       </span>

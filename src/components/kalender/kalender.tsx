@@ -3,6 +3,7 @@ import { getTermin, getTermineZwischen, getVeranstalter } from "@/lib/daten";
 import { heute as heuteBerlin } from "@/lib/datum";
 import { ladeFenster } from "@/lib/kalender-fenster";
 import { leseZustand } from "@/lib/kalender-url";
+import { getSitzung } from "@/lib/sitzung";
 import { KalenderAnsicht } from "@/components/kalender/kalender-ansicht";
 
 /** Lädt die Termine eines großen Zeitraums; Bedienen läuft danach im Browser (KalenderAnsicht). */
@@ -14,7 +15,7 @@ export async function Kalender({ searchParams }: { searchParams: PageProps<"/">[
   await io(); // "heute" erst zur Anfragezeit bestimmen, nicht beim Prerendern
   const heute = heuteBerlin();
   const fenster = ladeFenster(heute, zustand.monat);
-  const termine = await getTermineZwischen(fenster.von, fenster.bis);
+  const [termine, sitzung] = await Promise.all([getTermineZwischen(fenster.von, fenster.bis), getSitzung()]);
   const einzelTermin =
     zustand.termin && !termine.some((t) => t.id === zustand.termin) ? await getTermin(zustand.termin) : null;
 
@@ -25,6 +26,7 @@ export async function Kalender({ searchParams }: { searchParams: PageProps<"/">[
       fenster={fenster}
       heute={heute}
       einzelTermin={einzelTermin}
+      bearbeiter={sitzung && { istAdmin: sitzung.istAdmin, veranstalterId: sitzung.veranstalter?.id ?? null }}
     />
   );
 }
