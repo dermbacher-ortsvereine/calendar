@@ -1,6 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { inBerlin, parseZeitraum, pruefeReservierung, wochenMontag, zeitraumLiteral, type ReservierungEingabe } from "./reservierung.ts";
+import {
+  inBerlin,
+  parseZeitraum,
+  pruefeReservierung,
+  pruefeSperre,
+  sperrTage,
+  sperrZeitraumLiteral,
+  wochenMontag,
+  zeitraumLiteral,
+  type ReservierungEingabe,
+} from "./reservierung.ts";
 
 const gut: ReservierungEingabe = {
   raum_id: "stueffjen",
@@ -51,4 +61,28 @@ test("Wochenmontag", () => {
   assert.equal(wochenMontag("2026-10-19"), "2026-10-19");
   assert.equal(wochenMontag("2026-10-25"), "2026-10-19");
   assert.equal(wochenMontag("2026-11-01"), "2026-10-26");
+});
+
+test("Sperre: ganze Tage in Berliner Zeit, ohne Bis-Datum nur ein Tag", () => {
+  assert.equal(sperrZeitraumLiteral("2026-10-24", ""), '["2026-10-24 00:00 Europe/Berlin","2026-10-25 00:00 Europe/Berlin")');
+  assert.equal(sperrZeitraumLiteral("2026-12-30", "2027-01-02"), '["2026-12-30 00:00 Europe/Berlin","2027-01-03 00:00 Europe/Berlin")');
+});
+
+test("Sperre: Prüfung", () => {
+  const gutS = { raum_id: "stueffjen", datum: "2026-11-06", bis_datum: "2026-11-08", hinweis: " Kirmes " };
+  const r = pruefeSperre(gutS, ["stueffjen"]);
+  assert.equal(r.ok, true);
+  if (r.ok) assert.equal(r.daten.zweck, "Kirmes");
+  const r2 = pruefeSperre({ ...gutS, bis_datum: "2026-11-05", hinweis: "  " }, ["stueffjen"]);
+  assert.equal(r2.ok, false);
+  if (!r2.ok) assert.deepEqual(Object.keys(r2.fehler).sort(), ["bis_datum", "hinweis"]);
+  const r3 = pruefeSperre({ ...gutS, bis_datum: "2027-11-08" }, ["stueffjen"]);
+  assert.equal(r3.ok, false);
+});
+
+test("Sperre: gesperrte Tage aus dem Zeitraum (über die Zeitumstellung)", () => {
+  // 24.10. 00:00 MESZ bis 26.10. 00:00 MEZ (Zeitumstellung am 25.10.)
+  const z = parseZeitraum('["2026-10-23 22:00:00+00","2026-10-25 23:00:00+00")');
+  assert.ok(z);
+  assert.deepEqual(sperrTage(z), { von: "2026-10-24", bis: "2026-10-25" });
 });

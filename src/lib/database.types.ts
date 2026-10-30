@@ -39,13 +39,13 @@ isOneToOne: false
                   ]
                 },"reservierungen": {
                   Row: {
-                    "ansprechpartner": string | null,"erstellt_am": string,"geaendert_am": string,"id": string,"raum_id": string,"telefon": string | null,"termin_id": string | null,"veranstalter_id": string,"zeitraum": unknown,"zweck": string | null
+                    "ansprechpartner": string | null,"erstellt_am": string,"geaendert_am": string,"gesperrt": boolean,"id": string,"raum_id": string,"telefon": string | null,"termin_id": string | null,"veranstalter_id": string | null,"zeitraum": unknown,"zweck": string | null
                   }
                   Insert: {
-                    "ansprechpartner"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"id"?: string,"raum_id": string,"telefon"?: string | null,"termin_id"?: string | null,"veranstalter_id": string,"zeitraum": unknown,"zweck"?: string | null
+                    "ansprechpartner"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"gesperrt"?: boolean,"id"?: string,"raum_id": string,"telefon"?: string | null,"termin_id"?: string | null,"veranstalter_id"?: string | null,"zeitraum": unknown,"zweck"?: string | null
                   }
                   Update: {
-                    "ansprechpartner"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"id"?: string,"raum_id"?: string,"telefon"?: string | null,"termin_id"?: string | null,"veranstalter_id"?: string,"zeitraum"?: unknown,"zweck"?: string | null
+                    "ansprechpartner"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"gesperrt"?: boolean,"id"?: string,"raum_id"?: string,"telefon"?: string | null,"termin_id"?: string | null,"veranstalter_id"?: string | null,"zeitraum"?: unknown,"zweck"?: string | null
                   }
                   Relationships: [
                     {
@@ -105,13 +105,13 @@ isOneToOne: false
           Views: {
             "reservierungen_oeffentlich": {
                   Row: {
-                    "id": string | null,"raum_id": string | null,"veranstalter_id": string | null,"zeitraum": unknown,"zweck": string | null
+                    "gesperrt": boolean | null,"id": string | null,"raum_id": string | null,"veranstalter_id": string | null,"zeitraum": unknown,"zweck": string | null
                   }
                   Insert: {
-                           "id"?: string | null,"raum_id"?: string | null,"veranstalter_id"?: string | null,"zeitraum"?: unknown,"zweck"?: string | null
+                           "gesperrt"?: boolean | null,"id"?: string | null,"raum_id"?: string | null,"veranstalter_id"?: string | null,"zeitraum"?: unknown,"zweck"?: string | null
                          }
                         Update: {
-                           "id"?: string | null,"raum_id"?: string | null,"veranstalter_id"?: string | null,"zeitraum"?: unknown,"zweck"?: string | null
+                           "gesperrt"?: boolean | null,"id"?: string | null,"raum_id"?: string | null,"veranstalter_id"?: string | null,"zeitraum"?: unknown,"zweck"?: string | null
                          }
                         Relationships: [
                     {

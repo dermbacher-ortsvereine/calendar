@@ -86,7 +86,10 @@ export type Raum = Tables<"raeume">;
 export type Belegung = {
   id: string;
   raum_id: string;
-  veranstalter_id: string;
+  /** null bei Sperren */
+  veranstalter_id: string | null;
+  /** Sperre durch den Admin; `zweck` ist dann der Hinweis */
+  gesperrt: boolean;
   zweck: string | null;
   /** tstzrange als Text, siehe parseZeitraum() */
   zeitraum: string;
@@ -108,12 +111,12 @@ export async function getBelegung(von: string, bis: string): Promise<Belegung[]>
   cacheTag(TAG_RESERVIERUNGEN);
   const { data, error } = await createPublicClient()
     .from("reservierungen_oeffentlich")
-    .select("id, raum_id, veranstalter_id, zweck, zeitraum")
+    .select("id, raum_id, veranstalter_id, zweck, zeitraum, gesperrt")
     .overlaps("zeitraum", `[${von} 00:00 Europe/Berlin,${bis} 00:00 Europe/Berlin)`);
   if (error) throw error;
   return (data ?? []).flatMap((b) =>
-    b.id && b.raum_id && b.veranstalter_id && typeof b.zeitraum === "string"
-      ? [{ id: b.id, raum_id: b.raum_id, veranstalter_id: b.veranstalter_id, zweck: b.zweck, zeitraum: b.zeitraum }]
+    b.id && b.raum_id && typeof b.zeitraum === "string"
+      ? [{ id: b.id, raum_id: b.raum_id, veranstalter_id: b.veranstalter_id, gesperrt: !!b.gesperrt, zweck: b.zweck, zeitraum: b.zeitraum }]
       : [],
   );
 }
