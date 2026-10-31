@@ -7,7 +7,8 @@ import { feldKlasse, fehlerBox, labelKlasse, primaerKnopf, sekundaerKnopf } from
 import type { Termin } from "@/lib/daten";
 import type { TerminEingabe } from "@/lib/termin-validierung";
 
-const ORTE = ["Mehrzweckhalle", "Stüffjen", "Schulungsraum", "Dorfplatz", "Sportplatz", "Kirche", "Feuerwehrgerätehaus"];
+/** Ortsvorschläge; die Räume aus der Datenbank kommen nach der Mehrzweckhalle dazu. */
+const ORTE = ["Dorfplatz", "Sportplatz", "Kirche", "Feuerwehrgerätehaus"];
 
 function ausTermin(t: Termin | null, veranstalterId: string): TerminEingabe {
   return {
@@ -37,11 +38,13 @@ export function TerminFormular({
   termin,
   veranstalterAuswahl,
   eigenerVeranstalter,
+  raumNamen,
 }: {
   termin: Termin | null;
-  /** nur für den Admin: alle Veranstalter zur Auswahl */
+  /** Admin: alle Veranstalter; sonst eigener und gemeinsame (null, wenn es nichts zu wählen gibt) */
   veranstalterAuswahl: { id: string; name: string }[] | null;
   eigenerVeranstalter: string;
+  raumNamen: string[];
 }) {
   const [zustand, aktion, laeuft] = useActionState<FormularZustand, FormData>(terminSpeichern, { version: 0 });
   const w = zustand.werte ?? ausTermin(termin, eigenerVeranstalter);
@@ -179,7 +182,7 @@ export function TerminFormular({
           {...fehlerProps("ort")}
         />
         <datalist id="orte">
-          {ORTE.map((o) => (
+          {[...new Set(["Mehrzweckhalle", ...raumNamen, ...ORTE])].map((o) => (
             <option key={o} value={o} />
           ))}
         </datalist>

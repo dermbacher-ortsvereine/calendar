@@ -4,12 +4,12 @@ import type { Tables } from "@/lib/database.types";
 
 export type Veranstalter = Pick<
   Tables<"veranstalter">,
-  "id" | "name" | "kuerzel" | "farbe" | "farbe_hg" | "logo_url" | "sortierung"
+  "id" | "name" | "kuerzel" | "farbe" | "farbe_hg" | "logo_url" | "sortierung" | "gemeinsam"
 >;
 export type Termin = Omit<Tables<"termine">, "erstellt_am">;
 
 const TERMIN_SPALTEN =
-  "id, veranstalter_id, titel, datum, bis_datum, beginn, ende, ort, beschreibung, ansprechpartner, geaendert_am";
+  "id, veranstalter_id, titel, datum, bis_datum, beginn, ende, ort, beschreibung, ansprechpartner, geaendert_am, eingetragen_von";
 
 // Cache-Tags: nach Änderungen per updateTag()/revalidateTag() neu laden.
 export const TAG_TERMINE = "termine";
@@ -21,7 +21,7 @@ export async function getVeranstalter(): Promise<Veranstalter[]> {
   cacheTag(TAG_VERANSTALTER);
   const { data, error } = await createPublicClient()
     .from("veranstalter")
-    .select("id, name, kuerzel, farbe, farbe_hg, logo_url, sortierung")
+    .select("id, name, kuerzel, farbe, farbe_hg, logo_url, sortierung, gemeinsam")
     .eq("aktiv", true)
     .order("sortierung")
     .order("name");
@@ -80,22 +80,30 @@ export async function getTermin(id: string): Promise<Termin | null> {
 }
 
 export const TAG_RESERVIERUNGEN = "reservierungen";
+export const TAG_RAEUME = "raeume";
 
 export type Raum = Tables<"raeume">;
 
 export type Belegung = {
   id: string;
   raum_id: string;
-  veranstalter_id: string;
+  /** null bei Sperren */
+  veranstalter_id: string | null;
+  /** Sperre durch den Admin; `zweck` ist dann der Hinweis */
+  gesperrt: boolean;
   zweck: string | null;
+  /** Veranstalter, der eingetragen hat (bei gemeinsamen Veranstaltern interessant); null beim Admin */
+  eingetragen_von: string | null;
   /** tstzrange als Text, siehe parseZeitraum() */
   zeitraum: string;
+  /** gemeinsame ID wiederkehrender Reservierungen */
+  serie_id: string | null;
 };
 
 export async function getRaeume(): Promise<Raum[]> {
   "use cache";
   cacheLife("kalender");
-  cacheTag(TAG_VERANSTALTER);
+  cacheTag(TAG_RAEUME);
   const { data, error } = await createPublicClient().from("raeume").select("*").order("sortierung");
   if (error) throw error;
   return data;
@@ -108,12 +116,12 @@ export async function getBelegung(von: string, bis: string): Promise<Belegung[]>
   cacheTag(TAG_RESERVIERUNGEN);
   const { data, error } = await createPublicClient()
     .from("reservierungen_oeffentlich")
-    .select("id, raum_id, veranstalter_id, zweck, zeitraum")
+    .select("id, raum_id, veranstalter_id, zweck, zeitraum, gesperrt, eingetragen_von, serie_id")
     .overlaps("zeitraum", `[${von} 00:00 Europe/Berlin,${bis} 00:00 Europe/Berlin)`);
   if (error) throw error;
   return (data ?? []).flatMap((b) =>
-    b.id && b.raum_id && b.veranstalter_id && typeof b.zeitraum === "string"
-      ? [{ id: b.id, raum_id: b.raum_id, veranstalter_id: b.veranstalter_id, zweck: b.zweck, zeitraum: b.zeitraum }]
+    b.id && b.raum_id && typeof b.zeitraum === "string"
+      ? [{ id: b.id, raum_id: b.raum_id, veranstalter_id: b.veranstalter_id, gesperrt: !!b.gesperrt, zweck: b.zweck, eingetragen_von: b.eingetragen_von, zeitraum: b.zeitraum, serie_id: b.serie_id }]
       : [],
   );
 }

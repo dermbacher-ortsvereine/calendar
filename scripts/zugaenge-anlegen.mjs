@@ -1,4 +1,4 @@
-// Legt für jeden aktiven Veranstalter und für die Administration einen Auth-Benutzer an
+// Legt für jeden aktiven Veranstalter (außer gemeinsamen wie „Ortsvereine Dermbach“) und für die Administration einen Auth-Benutzer an
 // (bzw. setzt das Passwort neu, falls es ihn schon gibt) und verknüpft ihn mit seinem
 // Profil (Veranstalter bzw. Administration).
 //
@@ -32,6 +32,7 @@ const { data: veranstalter, error } = await supabase
   .from("veranstalter")
   .select("id, name, login_email")
   .eq("aktiv", true)
+  .eq("gemeinsam", false)
   .order("sortierung");
 if (error) throw error;
 

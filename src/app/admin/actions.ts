@@ -2,10 +2,11 @@
 
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { TAG_VERANSTALTER } from "@/lib/daten";
+import { TAG_RAEUME, TAG_VERANSTALTER } from "@/lib/daten";
 import { getSitzung } from "@/lib/sitzung";
 import { zugangSetzen } from "@/lib/supabase/admin";
 import { createSessionClient } from "@/lib/supabase/server";
+import { pruefeRaum, type RaumEingabe } from "@/lib/raum-validierung";
 import { pruefePasswort, pruefeVeranstalter, type VeranstalterEingabe } from "@/lib/veranstalter-validierung";
 
 export type AdminZustand = {
@@ -13,6 +14,7 @@ export type AdminZustand = {
   feldFehler?: Partial<Record<keyof VeranstalterEingabe | "passwort", string>>;
   erfolg?: string;
   werte?: VeranstalterEingabe;
+  raumWerte?: RaumEingabe;
   version: number;
 };
 
@@ -100,8 +102,9 @@ export async function passwortSetzen(vorher: AdminZustand, formData: FormData): 
   if (pwFehler) return { fehler: pwFehler, feldFehler: { passwort: pwFehler }, version };
 
   const supabase = await createSessionClient();
-  const { data: v } = await supabase.from("veranstalter").select("login_email").eq("id", id).maybeSingle();
+  const { data: v } = await supabase.from("veranstalter").select("login_email, gemeinsam").eq("id", id).maybeSingle();
   if (!v) return { fehler: "Veranstalter nicht gefunden.", version };
+  if (v.gemeinsam) return { fehler: "Gemeinsame Veranstalter haben keinen eigenen Zugang.", version };
 
   const res = await zugangSetzen(v.login_email, passwort, { veranstalter_id: id, ist_admin: false });
   if (res.fehler) return { fehler: `Das hat nicht geklappt: ${res.fehler}`, version };
@@ -169,4 +172,66 @@ async function altesLogoEntfernen(url: string | null) {
   if (!pfad) return;
   const supabase = await createSessionClient();
   await supabase.storage.from("logos").remove([decodeURIComponent(pfad)]);
+}
+
+function raumEingabe(formData: FormData): RaumEingabe {
+  const w = (k: string) => String(formData.get(k) ?? "");
+  return { id: w("id").trim().toLowerCase(), name: w("name"), sortierung: w("sortierung") };
+}
+
+export async function raumSpeichern(vorher: AdminZustand, formData: FormData): Promise<AdminZustand> {
+  await nurAdmin();
+  const version = vorher.version + 1;
+  const werte = raumEingabe(formData);
+  const r = pruefeRaum(werte, { neu: false });
+  if (!r.ok) return { fehler: "Bitte die markierten Felder prüfen.", feldFehler: r.fehler, raumWerte: werte, version };
+
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase.from("raeume").update(r.daten).eq("id", werte.id).select("id");
+  if (error || !data?.length) return { fehler: "Speichern hat nicht geklappt.", raumWerte: werte, version };
+
+  updateTag(TAG_RAEUME);
+  return { erfolg: "Gespeichert.", version };
+}
+
+export async function raumAnlegen(vorher: AdminZustand, formData: FormData): Promise<AdminZustand> {
+  await nurAdmin();
+  const version = vorher.version + 1;
+  const werte = raumEingabe(formData);
+  const r = pruefeRaum(werte, { neu: true });
+  if (!r.ok) return { fehler: "Bitte die markierten Felder prüfen.", feldFehler: r.fehler, raumWerte: werte, version };
+
+  const supabase = await createSessionClient();
+  const { error } = await supabase.from("raeume").insert({ id: werte.id, ...r.daten });
+  if (error) {
+    return {
+      fehler: error.code === "23505" ? `Die Kennung „${werte.id}“ gibt es schon.` : "Anlegen hat nicht geklappt.",
+      feldFehler: error.code === "23505" ? { id: "Bereits vergeben." } : undefined,
+      raumWerte: werte,
+      version,
+    };
+  }
+
+  updateTag(TAG_RAEUME);
+  return { erfolg: `„${r.daten.name}“ angelegt. Der Raum kann ab sofort reserviert werden.`, version };
+}
+
+/** Löschen nur ohne Reservierungen und Sperren (auch vergangene) – die Datenbank verhindert es sonst (23503). */
+export async function raumLoeschen(vorher: AdminZustand, formData: FormData): Promise<AdminZustand> {
+  await nurAdmin();
+  const version = vorher.version + 1;
+  const id = String(formData.get("id") ?? "");
+
+  const supabase = await createSessionClient();
+  const { count } = await supabase.from("raeume").select("id", { count: "exact", head: true });
+  if ((count ?? 0) <= 1) return { fehler: "Der letzte Raum kann nicht gelöscht werden.", version };
+
+  const { data, error } = await supabase.from("raeume").delete().eq("id", id).select("id");
+  if (error?.code === "23503") {
+    return { fehler: "Für diesen Raum gibt es Reservierungen oder Sperren (auch vergangene). Er kann deshalb nicht gelöscht werden.", version };
+  }
+  if (error || !data?.length) return { fehler: "Löschen hat nicht geklappt.", version };
+
+  updateTag(TAG_RAEUME);
+  return { erfolg: "Raum gelöscht.", version };
 }

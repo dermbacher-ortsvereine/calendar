@@ -1,15 +1,21 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useFormStatus } from "react-dom";
 import {
   eigenesPasswortAendern,
   logoAendern,
   passwortSetzen,
+  raumAnlegen,
+  raumLoeschen,
+  raumSpeichern,
   veranstalterAnlegen,
   veranstalterSpeichern,
   type AdminZustand,
 } from "@/app/admin/actions";
+import { BestaetigungDialog, rotKnopf } from "@/components/bestaetigung-dialog";
 import { erfolgBox, feldKlasse, fehlerBox, labelKlasse, primaerKnopf, sekundaerKnopf } from "@/components/formular/stile";
+import type { RaumEingabe } from "@/lib/raum-validierung";
 import { kontrast, MIN_KONTRAST, type VeranstalterEingabe } from "@/lib/veranstalter-validierung";
 
 const START: AdminZustand = { version: 0 };
@@ -223,6 +229,101 @@ export function EigenesPasswort() {
       <div>
         <button type="submit" disabled={laeuft} className={kleinKnopf}>
           {laeuft ? "Wird geändert …" : "Passwort ändern"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function RaumFelder({ w, f, neu }: { w: RaumEingabe; f: AdminZustand["feldFehler"]; neu: boolean }) {
+  return (
+    <>
+      {neu && (
+        <label className={labelKlasse}>
+          Kennung (für Links, nicht änderbar)
+          <input name="id" defaultValue={w.id} required pattern="[a-z0-9]{2,30}" placeholder="z. B. kegelbahn" className={feld} />
+          <FeldFehler text={f?.id} />
+        </label>
+      )}
+      <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
+        <label className={labelKlasse}>
+          Name
+          <input name="name" defaultValue={w.name} required maxLength={60} className={feld} />
+          <FeldFehler text={f?.name} />
+        </label>
+        <label className={labelKlasse}>
+          Reihenfolge
+          <input type="number" name="sortierung" min={0} max={9999} defaultValue={w.sortierung} className={feld} />
+          <FeldFehler text={f?.sortierung} />
+        </label>
+      </div>
+    </>
+  );
+}
+
+export function RaumBearbeiten({ r }: { r: { id: string; name: string; sortierung: number } }) {
+  const [z, aktion, laeuft] = useActionState(raumSpeichern, START);
+  const w: RaumEingabe = z.raumWerte ?? { ...r, sortierung: String(r.sortierung) };
+  return (
+    <form key={z.version} action={aktion} className="flex flex-col gap-3.5">
+      <input type="hidden" name="id" value={r.id} />
+      <Meldung z={z} />
+      <RaumFelder w={w} f={z.feldFehler} neu={false} />
+      <div>
+        <button type="submit" disabled={laeuft} className={kleinKnopf}>
+          {laeuft ? "Speichern …" : "Änderungen speichern"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function LoeschenBestaetigen() {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" disabled={pending} className={rotKnopf}>
+      {pending ? "Wird gelöscht …" : "Ja, löschen"}
+    </button>
+  );
+}
+
+export function RaumLoeschen({ id, name }: { id: string; name: string }) {
+  const [z, aktion] = useActionState(raumLoeschen, START);
+  // Dialog gehört zu genau einer Antwort-Version: kommt die Antwort, schließt er sich von selbst.
+  const [offenBei, setOffenBei] = useState<number | null>(null);
+  return (
+    <div className="flex flex-col gap-3">
+      <Meldung z={z} />
+      <div>
+        <button type="button" onClick={() => setOffenBei(z.version)} className={`${sekundaerKnopf} min-h-11 text-sm text-[#B3261E]`}>
+          Raum löschen
+        </button>
+      </div>
+      <p className="text-[13px] text-muted">Nur möglich, solange es für den Raum keine Reservierungen oder Sperren gibt.</p>
+      <BestaetigungDialog
+        offen={offenBei === z.version}
+        onSchliessen={() => setOffenBei(null)}
+        titel={`„${name}“ wirklich löschen?`}
+        text="Der Raum verschwindet aus Belegung und Reservierung."
+        action={aktion}
+        felder={{ id }}
+      >
+        <LoeschenBestaetigen />
+      </BestaetigungDialog>
+    </div>
+  );
+}
+
+export function RaumNeu({ sortierung }: { sortierung: number }) {
+  const [z, aktion, laeuft] = useActionState(raumAnlegen, START);
+  const w: RaumEingabe = z.raumWerte ?? { id: "", name: "", sortierung: String(sortierung) };
+  return (
+    <form key={z.version} action={aktion} className="flex flex-col gap-3.5">
+      <Meldung z={z} />
+      <RaumFelder w={w} f={z.feldFehler} neu />
+      <div>
+        <button type="submit" disabled={laeuft} className={kleinKnopf}>
+          {laeuft ? "Wird angelegt …" : "Raum anlegen"}
         </button>
       </div>
     </form>

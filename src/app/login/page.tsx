@@ -16,7 +16,9 @@ async function LoginInhalt({ searchParams }: { searchParams: PageProps<"/login">
   if (await getSitzung()) redirect(ziel);
 
   const veranstalter = await getVeranstalter();
-  return <LoginFormular veranstalter={veranstalter.map(({ id, name }) => ({ id, name }))} weiter={ziel} />;
+  // Gemeinsame Veranstalter (z. B. Ortsvereine Dermbach) haben keinen eigenen Zugang.
+  const auswahl = veranstalter.filter((v) => !v.gemeinsam).map(({ id, name }) => ({ id, name }));
+  return <LoginFormular veranstalter={auswahl} weiter={ziel} />;
 }
 
 export default function LoginPage(props: PageProps<"/login">) {

@@ -39,16 +39,22 @@ isOneToOne: false
                   ]
                 },"reservierungen": {
                   Row: {
-                    "ansprechpartner": string | null,"erstellt_am": string,"geaendert_am": string,"id": string,"raum_id": string,"telefon": string | null,"termin_id": string | null,"veranstalter_id": string,"zeitraum": unknown,"zweck": string | null
+                    "ansprechpartner": string | null,"eingetragen_von": string | null,"erstellt_am": string,"geaendert_am": string,"gesperrt": boolean,"id": string,"raum_id": string,"serie_id": string | null,"telefon": string | null,"termin_id": string | null,"veranstalter_id": string | null,"zeitraum": unknown,"zweck": string | null
                   }
                   Insert: {
-                    "ansprechpartner"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"id"?: string,"raum_id": string,"telefon"?: string | null,"termin_id"?: string | null,"veranstalter_id": string,"zeitraum": unknown,"zweck"?: string | null
+                    "ansprechpartner"?: string | null,"eingetragen_von"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"gesperrt"?: boolean,"id"?: string,"raum_id": string,"serie_id"?: string | null,"telefon"?: string | null,"termin_id"?: string | null,"veranstalter_id"?: string | null,"zeitraum": unknown,"zweck"?: string | null
                   }
                   Update: {
-                    "ansprechpartner"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"id"?: string,"raum_id"?: string,"telefon"?: string | null,"termin_id"?: string | null,"veranstalter_id"?: string,"zeitraum"?: unknown,"zweck"?: string | null
+                    "ansprechpartner"?: string | null,"eingetragen_von"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"gesperrt"?: boolean,"id"?: string,"raum_id"?: string,"serie_id"?: string | null,"telefon"?: string | null,"termin_id"?: string | null,"veranstalter_id"?: string | null,"zeitraum"?: unknown,"zweck"?: string | null
                   }
                   Relationships: [
                     {
+      foreignKeyName: "reservierungen_eingetragen_von_fkey"
+      columns: ["eingetragen_von"]
+isOneToOne: false
+      referencedRelation: "veranstalter"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "reservierungen_raum_id_fkey"
       columns: ["raum_id"]
 isOneToOne: false
@@ -70,16 +76,22 @@ isOneToOne: false
                   ]
                 },"termine": {
                   Row: {
-                    "ansprechpartner": string | null,"beginn": string | null,"beschreibung": string | null,"bis_datum": string | null,"datum": string,"ende": string | null,"erstellt_am": string,"geaendert_am": string,"id": string,"ort": string | null,"titel": string,"veranstalter_id": string
+                    "ansprechpartner": string | null,"beginn": string | null,"beschreibung": string | null,"bis_datum": string | null,"datum": string,"eingetragen_von": string | null,"ende": string | null,"erstellt_am": string,"geaendert_am": string,"id": string,"ort": string | null,"titel": string,"veranstalter_id": string
                   }
                   Insert: {
-                    "ansprechpartner"?: string | null,"beginn"?: string | null,"beschreibung"?: string | null,"bis_datum"?: string | null,"datum": string,"ende"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"id"?: string,"ort"?: string | null,"titel": string,"veranstalter_id": string
+                    "ansprechpartner"?: string | null,"beginn"?: string | null,"beschreibung"?: string | null,"bis_datum"?: string | null,"datum": string,"eingetragen_von"?: string | null,"ende"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"id"?: string,"ort"?: string | null,"titel": string,"veranstalter_id": string
                   }
                   Update: {
-                    "ansprechpartner"?: string | null,"beginn"?: string | null,"beschreibung"?: string | null,"bis_datum"?: string | null,"datum"?: string,"ende"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"id"?: string,"ort"?: string | null,"titel"?: string,"veranstalter_id"?: string
+                    "ansprechpartner"?: string | null,"beginn"?: string | null,"beschreibung"?: string | null,"bis_datum"?: string | null,"datum"?: string,"eingetragen_von"?: string | null,"ende"?: string | null,"erstellt_am"?: string,"geaendert_am"?: string,"id"?: string,"ort"?: string | null,"titel"?: string,"veranstalter_id"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "termine_eingetragen_von_fkey"
+      columns: ["eingetragen_von"]
+isOneToOne: false
+      referencedRelation: "veranstalter"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "termine_veranstalter_id_fkey"
       columns: ["veranstalter_id"]
 isOneToOne: false
@@ -89,13 +101,13 @@ isOneToOne: false
                   ]
                 },"veranstalter": {
                   Row: {
-                    "aktiv": boolean,"farbe": string,"farbe_hg": string,"id": string,"kuerzel": string,"login_email": string,"logo_url": string | null,"name": string,"sortierung": number
+                    "aktiv": boolean,"farbe": string,"farbe_hg": string,"gemeinsam": boolean,"id": string,"kuerzel": string,"login_email": string,"logo_url": string | null,"name": string,"sortierung": number
                   }
                   Insert: {
-                    "aktiv"?: boolean,"farbe": string,"farbe_hg": string,"id": string,"kuerzel": string,"login_email": string,"logo_url"?: string | null,"name": string,"sortierung"?: number
+                    "aktiv"?: boolean,"farbe": string,"farbe_hg": string,"gemeinsam"?: boolean,"id": string,"kuerzel": string,"login_email": string,"logo_url"?: string | null,"name": string,"sortierung"?: number
                   }
                   Update: {
-                    "aktiv"?: boolean,"farbe"?: string,"farbe_hg"?: string,"id"?: string,"kuerzel"?: string,"login_email"?: string,"logo_url"?: string | null,"name"?: string,"sortierung"?: number
+                    "aktiv"?: boolean,"farbe"?: string,"farbe_hg"?: string,"gemeinsam"?: boolean,"id"?: string,"kuerzel"?: string,"login_email"?: string,"logo_url"?: string | null,"name"?: string,"sortierung"?: number
                   }
                   Relationships: [
                     
@@ -105,16 +117,22 @@ isOneToOne: false
           Views: {
             "reservierungen_oeffentlich": {
                   Row: {
-                    "id": string | null,"raum_id": string | null,"veranstalter_id": string | null,"zeitraum": unknown,"zweck": string | null
+                    "eingetragen_von": string | null,"gesperrt": boolean | null,"id": string | null,"raum_id": string | null,"serie_id": string | null,"veranstalter_id": string | null,"zeitraum": unknown,"zweck": string | null
                   }
                   Insert: {
-                           "id"?: string | null,"raum_id"?: string | null,"veranstalter_id"?: string | null,"zeitraum"?: unknown,"zweck"?: string | null
+                           "eingetragen_von"?: string | null,"gesperrt"?: boolean | null,"id"?: string | null,"raum_id"?: string | null,"serie_id"?: string | null,"veranstalter_id"?: string | null,"zeitraum"?: unknown,"zweck"?: string | null
                          }
                         Update: {
-                           "id"?: string | null,"raum_id"?: string | null,"veranstalter_id"?: string | null,"zeitraum"?: unknown,"zweck"?: string | null
+                           "eingetragen_von"?: string | null,"gesperrt"?: boolean | null,"id"?: string | null,"raum_id"?: string | null,"serie_id"?: string | null,"veranstalter_id"?: string | null,"zeitraum"?: unknown,"zweck"?: string | null
                          }
                         Relationships: [
                     {
+      foreignKeyName: "reservierungen_eingetragen_von_fkey"
+      columns: ["eingetragen_von"]
+isOneToOne: false
+      referencedRelation: "veranstalter"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "reservierungen_raum_id_fkey"
       columns: ["raum_id"]
 isOneToOne: false

@@ -74,3 +74,8 @@
     opacity: 0.6;
   }
 }
+
+/* Offenes Modal: Seite dahinter nicht mitscrollen */
+html:has(dialog[open]) {
+  overflow: hidden;
+}

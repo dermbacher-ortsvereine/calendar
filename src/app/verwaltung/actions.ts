@@ -4,6 +4,7 @@ import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { TAG_TERMINE } from "@/lib/daten";
 import { sichererPfad } from "@/lib/pfad";
+import { darfSchreiben } from "@/lib/rechte";
 import { getSitzung } from "@/lib/sitzung";
 import { createSessionClient } from "@/lib/supabase/server";
 import { eingabeAusFormData, pruefeTermin, type TerminEingabe } from "@/lib/termin-validierung";
@@ -29,8 +30,8 @@ export async function terminSpeichern(vorher: FormularZustand, formData: FormDat
     return { fehler: "Bitte die markierten Felder prüfen.", feldFehler: pruefung.fehler, werte, version };
   }
 
-  // Normale Veranstalter speichern immer für sich selbst; nur der Admin wählt aus. RLS prüft zusätzlich.
-  const veranstalterId = sitzung.istAdmin ? werte.veranstalter_id : sitzung.veranstalter?.id;
+  // Normale Veranstalter speichern für sich selbst oder für einen gemeinsamen Veranstalter; der Admin wählt frei. RLS prüft zusätzlich.
+  const veranstalterId = darfSchreiben(sitzung, werte.veranstalter_id) ? werte.veranstalter_id : sitzung.veranstalter?.id;
   if (!veranstalterId) {
     return { fehler: "Bitte den Veranstalter auswählen.", feldFehler: { veranstalter_id: "Bitte auswählen." }, werte, version };
   }

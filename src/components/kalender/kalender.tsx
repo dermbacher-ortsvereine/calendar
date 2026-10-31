@@ -26,7 +26,7 @@ export async function Kalender({ searchParams }: { searchParams: PageProps<"/">[
       fenster={fenster}
       heute={heute}
       einzelTermin={einzelTermin}
-      bearbeiter={sitzung && { istAdmin: sitzung.istAdmin, veranstalterId: sitzung.veranstalter?.id ?? null }}
+      bearbeiter={sitzung && { istAdmin: sitzung.istAdmin, schreibbar: sitzung.schreibbar }}
     />
   );
 }

@@ -4,13 +4,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { erfolgBox, fehlerBox, primaerKnopf } from "@/components/formular/stile";
-import { ChevronLeftIcon, ChevronRightIcon, PencilIcon } from "@/components/icons";
+import { ChevronLeftIcon, ChevronRightIcon, LockIcon, PencilIcon, RepeatIcon } from "@/components/icons";
 import { getBelegung, getRaeume, getVeranstalter, type Belegung, type Veranstalter } from "@/lib/daten";
 import { datumKurz, heute, plusTage, tagMonat, wochentagLang } from "@/lib/datum";
-import { inBerlin, parseZeitraum, wochenMontag } from "@/lib/reservierung";
+import { inBerlin, parseZeitraum, sperrTage, wochenMontag } from "@/lib/reservierung";
+import { darfSchreiben, veranstalterAuswahl } from "@/lib/rechte";
 import { getSitzung, type Sitzung } from "@/lib/sitzung";
 import { createSessionClient } from "@/lib/supabase/server";
 import { ReservierungFormular } from "@/app/raeume/reservierung-formular";
+import { SperreFormular } from "@/app/raeume/sperre-formular";
 import { StornierenKnopf } from "@/app/raeume/stornieren-knopf";
 
 export const metadata: Metadata = { title: "Räume" };
@@ -18,13 +20,15 @@ export const metadata: Metadata = { title: "Räume" };
 const erster = (w: string | string[] | undefined) => (Array.isArray(w) ? w[0] : w);
 const istTag = (w: string | undefined): w is string => !!w && /^\d{4}-\d{2}-\d{2}$/.test(w);
 
-type Zustand = { raum: string; woche: string; datum: string | null; bearbeiten: string | null };
+/** `sperre`: Admin hat im Formularbereich „Sperren“ gewählt */
+type Zustand = { raum: string; woche: string; datum: string | null; bearbeiten: string | null; sperre: boolean };
 
 function raeumeHref(z: Zustand, aenderung: Partial<Zustand> = {}, hash = "") {
   const n = { ...z, ...aenderung };
   const q = new URLSearchParams({ raum: n.raum, woche: n.woche });
   if (n.datum) q.set("datum", n.datum);
   if (n.bearbeiten) q.set("bearbeiten", n.bearbeiten);
+  if (n.sperre) q.set("sperre", "1");
   return `/raeume?${q}${hash}`;
 }
 
@@ -35,14 +39,40 @@ type Eintrag = {
   zeit: string;
   start: number;
   v: Veranstalter | undefined;
+  /** wer eingetragen hat, falls nicht der Veranstalter selbst (z. B. bei „Ortsvereine Dermbach“) */
+  eingetragenVon: Veranstalter | undefined;
+  /** Sperre durch den Admin; `zweck` ist der Hinweis, `zeit` beschreibt die gesperrten Tage */
+  gesperrt: boolean;
   zweck: string | null;
+  /** Teil einer wiederkehrenden Reservierung */
+  serie: boolean;
 };
 
 function eintraege(belegung: Belegung[], veranstalter: Map<string, Veranstalter>, montag: string): Eintrag[] {
+  const sonntag = plusTage(montag, 6);
   return belegung
     .flatMap((b) => {
       const z = parseZeitraum(b.zeitraum);
       if (!z) return [];
+      if (b.gesperrt) {
+        // An jedem gesperrten Tag dieser Woche zeigen
+        const t = sperrTage(z);
+        const zeit = t.von === t.bis ? "Ganztägig" : `${tagMonat(t.von)} – ${tagMonat(t.bis)}`;
+        const tage: string[] = [];
+        for (let tag = t.von < montag ? montag : t.von; tag <= t.bis && tag <= sonntag; tag = plusTage(tag, 1)) tage.push(tag);
+        return tage.map((tag) => ({
+          id: b.id,
+          raumId: b.raum_id,
+          tag,
+          zeit,
+          start: z.start.getTime(),
+          v: undefined,
+          eingetragenVon: undefined,
+          gesperrt: true,
+          zweck: b.zweck,
+          serie: false,
+        }));
+      }
       const s = inBerlin(z.start);
       const e = inBerlin(z.ende);
       return [
@@ -52,8 +82,11 @@ function eintraege(belegung: Belegung[], veranstalter: Map<string, Veranstalter>
           tag: s.datum < montag ? montag : s.datum, // über Mitternacht in die Woche hinein: am Montag zeigen
           zeit: `${s.zeit}–${e.zeit}`,
           start: z.start.getTime(),
-          v: veranstalter.get(b.veranstalter_id),
+          v: veranstalter.get(b.veranstalter_id ?? ""),
+          eingetragenVon: b.eingetragen_von && b.eingetragen_von !== b.veranstalter_id ? veranstalter.get(b.eingetragen_von) : undefined,
+          gesperrt: false,
           zweck: b.zweck,
+          serie: !!b.serie_id,
         },
       ];
     })
@@ -64,8 +97,8 @@ function eintraege(belegung: Belegung[], veranstalter: Map<string, Veranstalter>
 const eintragKnopf =
   "relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md bg-surface/70 after:absolute after:-inset-1.5 hover:bg-surface";
 
-const darfAendern = (sitzung: Sitzung | null, veranstalterId: string) =>
-  !!sitzung && (sitzung.istAdmin || sitzung.veranstalter?.id === veranstalterId);
+const darfAendern = (sitzung: Sitzung | null, b: Eintrag) =>
+  !!sitzung && (sitzung.istAdmin || (!b.gesperrt && darfSchreiben(sitzung, b.v?.id)));
 
 const navKnopf =
   "flex size-11 items-center justify-center rounded-control border border-line-input bg-surface text-ink hover:bg-accent-hover hover:text-ink";
@@ -88,13 +121,37 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
     woche: montag,
     datum: istTag(datumParam) ? datumParam : null,
     bearbeiten: sitzung && bearbeitenParam ? bearbeitenParam : null,
+    sperre: !!sitzung?.istAdmin && erster(params.sperre) === "1",
   };
+  const anzahl = (k: string) => Number(erster(params[k])) || 1;
+  const ausgelassen = Number(erster(params.ausgelassen)) || 0;
+  const unveraendert = Number(erster(params.unveraendert)) || 0;
   const meldung = erster(params.reserviert)
-    ? { ok: true, text: "Reservierung eingetragen – sie erscheint jetzt im Belegungsplan." }
+    ? {
+        ok: true,
+        text:
+          anzahl("reserviert") > 1
+            ? `${anzahl("reserviert")} Reservierungen eingetragen – sie erscheinen jetzt im Belegungsplan.${
+                ausgelassen ? ` ${ausgelassen} schon belegte ${ausgelassen === 1 ? "Tag wurde" : "Tage wurden"} ausgelassen.` : ""
+              }`
+            : "Reservierung eingetragen – sie erscheint jetzt im Belegungsplan.",
+      }
     : erster(params.geaendert)
-      ? { ok: true, text: "Reservierung geändert." }
+      ? {
+          ok: true,
+          text:
+            anzahl("geaendert") > 1
+              ? `${anzahl("geaendert")} Reservierungen geändert.${
+                  unveraendert ? ` ${unveraendert} schon belegte ${unveraendert === 1 ? "Tag bleibt" : "Tage bleiben"} wie bisher.` : ""
+                }`
+              : "Reservierung geändert.",
+        }
       : erster(params.storniert)
-        ? { ok: true, text: "Reservierung storniert." }
+        ? { ok: true, text: anzahl("storniert") > 1 ? `${anzahl("storniert")} Reservierungen storniert.` : "Reservierung storniert." }
+        : erster(params.gesperrt)
+          ? { ok: true, text: "Raum gesperrt – an diesen Tagen kann niemand mehr reservieren." }
+          : erster(params.entsperrt)
+            ? { ok: true, text: "Sperre aufgehoben." }
         : erster(params.fehler)
           ? { ok: false, text: "Die Reservierung konnte nicht storniert werden." }
           : null;
@@ -106,10 +163,10 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
 
   return (
     <>
-      <nav aria-label="Raum wählen" className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+      <nav aria-label="Raum wählen" className="grid grid-cols-1 gap-3.5 sm:grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
         {raeume.map((r) => {
           const an = r.id === raum.id;
-          const n = proRaum(r.id).length;
+          const n = new Set(proRaum(r.id).map((b) => b.id)).size;
           return (
             <Link
               key={r.id}
@@ -165,6 +222,7 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
               const items = proRaum(raum.id).filter((b) => b.tag === tag);
               const istHeute = tag === heuteTag;
               const vorbei = tag < heuteTag;
+              const gesperrt = items.some((b) => b.gesperrt);
               return (
                 <li
                   key={tag}
@@ -180,22 +238,37 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
                     <span className="text-[13px] text-muted">{tagMonat(tag)}</span>
                   </div>
                   {items.map((b) => {
-                    const beschreibung = `${datumKurz(b.tag)}, ${b.zeit} Uhr`;
+                    const beschreibung = b.gesperrt ? `Sperre ${b.zeit === "Ganztägig" ? datumKurz(b.tag) : b.zeit}` : `Reservierung ${datumKurz(b.tag)}, ${b.zeit} Uhr`;
                     return (
                       <div
                         key={b.id}
                         className={`flex flex-col gap-0.5 rounded-lg p-2 break-words ${
                           zustand.bearbeiten === b.id ? "outline-2 outline-offset-1 outline-current" : ""
-                        }`}
-                        style={{ background: b.v?.farbe_hg ?? "#F3F5F3", color: b.v?.farbe ?? "#17201B" }}
+                        } ${b.gesperrt ? "border border-[#B9C2BC] bg-[repeating-linear-gradient(135deg,#ECEFED_0_8px,#E2E6E3_8px_16px)] text-ink" : ""}`}
+                        style={b.gesperrt ? undefined : { background: b.v?.farbe_hg ?? "#F3F5F3", color: b.v?.farbe ?? "#17201B" }}
                       >
                         <div className="flex flex-wrap items-start justify-between gap-x-1.5 gap-y-1">
-                          <span className="text-[13px] font-bold">{b.zeit}</span>
-                          {darfAendern(sitzung, b.v?.id ?? "") && (
+                          {b.gesperrt ? (
+                            <span className="flex items-center gap-1 text-[13px] font-bold">
+                              <LockIcon className="size-3.5" />
+                              Gesperrt
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-[13px] font-bold">
+                              {b.zeit}
+                              {b.serie && (
+                                <>
+                                  <RepeatIcon className="size-3.5" />
+                                  <span className="sr-only">(wiederkehrend)</span>
+                                </>
+                              )}
+                            </span>
+                          )}
+                          {darfAendern(sitzung, b) && (
                             <span className="-mt-0.5 -mr-0.5 ml-auto flex gap-1.5">
                               <Link
-                                href={raeumeHref(zustand, { bearbeiten: b.id, datum: null }, "#reservieren")}
-                                aria-label={`Reservierung ${beschreibung} bearbeiten`}
+                                href={raeumeHref(zustand, { bearbeiten: b.id, datum: null, sperre: b.gesperrt }, "#reservieren")}
+                                aria-label={`${beschreibung} bearbeiten`}
                                 className={`${eintragKnopf} text-current hover:text-current`}
                               >
                                 <PencilIcon className="size-4" />
@@ -203,6 +276,8 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
                               <StornierenKnopf
                                 id={b.id}
                                 beschreibung={beschreibung}
+                                sperre={b.gesperrt}
+                                serie={b.serie}
                                 raum={zustand.raum}
                                 woche={zustand.woche}
                                 className={`${eintragKnopf} text-[#B3261E]`}
@@ -210,19 +285,29 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
                             </span>
                           )}
                         </div>
-                        <span className="text-[13px] font-semibold">{b.v?.name ?? "Belegt"}</span>
-                        {b.zweck && <span className="text-xs text-muted-strong">{b.zweck}</span>}
+                        {b.gesperrt ? (
+                          <>
+                            {b.zweck && <span className="text-[13px] font-semibold">{b.zweck}</span>}
+                            <span className="text-xs text-muted-strong">{b.zeit === "Ganztägig" ? "Ganztägig, keine Reservierung möglich" : `${b.zeit}, keine Reservierung möglich`}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-[13px] font-semibold">{b.v?.name ?? "Belegt"}</span>
+                            {b.zweck && <span className="text-xs text-muted-strong">{b.zweck}</span>}
+                            {b.eingetragenVon && <span className="text-xs text-muted-strong">eingetragen von {b.eingetragenVon.name}</span>}
+                          </>
+                        )}
                       </div>
                     );
                   })}
                   {items.length === 0 && <span className="text-[13px] text-muted">Noch frei</span>}
-                  {!vorbei && (
+                  {!vorbei && !gesperrt && (
                     <Link
                       href={raeumeHref(zustand, { datum: tag, bearbeiten: null }, "#reservieren")}
-                      aria-label={`${raum.name} am ${datumKurz(tag)} reservieren`}
+                      aria-label={`${raum.name} am ${datumKurz(tag)} ${zustand.sperre ? "sperren" : "reservieren"}`}
                       className="mt-auto flex min-h-10 items-center justify-center rounded-lg border-[1.5px] border-dashed border-[#9FB3A6] text-[13px] font-semibold text-accent no-underline hover:bg-surface"
                     >
-                      Reservieren
+                      {zustand.sperre ? "Sperren" : "Reservieren"}
                     </Link>
                   )}
                 </li>
@@ -232,7 +317,13 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
         </section>
 
         <aside id="reservieren" className="flex min-w-0 scroll-mt-4 flex-col gap-3.5 rounded-card border border-line bg-surface p-5 sm:p-[22px]">
-          <h2 className="font-display text-xl font-bold">{zustand.bearbeiten ? "Reservierung bearbeiten" : "Raum reservieren"}</h2>
+          <h2 className="font-display text-xl font-bold">{zustand.sperre
+              ? zustand.bearbeiten
+                ? "Sperre bearbeiten"
+                : "Raum sperren"
+              : zustand.bearbeiten
+                ? "Reservierung bearbeiten"
+                : "Raum reservieren"}</h2>
           <Suspense fallback={<div className="h-96 animate-pulse rounded-control bg-bg" />}>
             <ReservierungBereich zustand={zustand} raeume={raeume.map(({ id, name }) => ({ id, name }))} veranstalterListe={veranstalterListe} />
           </Suspense>
@@ -269,20 +360,53 @@ async function ReservierungBereich({
     );
   }
 
-  // RLS liefert nur eigene Reservierungen (Admin: alle) – fremde IDs ergeben hier nichts.
+  // RLS liefert nur eigene und gemeinsame Reservierungen (Admin: alle) – fremde IDs ergeben hier nichts.
+  const supabase = await createSessionClient();
   const { data: r } = zustand.bearbeiten
-    ? await (await createSessionClient())
+    ? await supabase
         .from("reservierungen")
-        .select("id, raum_id, veranstalter_id, zeitraum, zweck, ansprechpartner, telefon")
+        .select("id, raum_id, veranstalter_id, zeitraum, zweck, ansprechpartner, telefon, gesperrt, serie_id")
         .eq("id", zustand.bearbeiten)
+        .eq("gesperrt", zustand.sperre)
         .maybeSingle()
     : { data: null };
+  // Teil einer Reihe: wie viele Termine wären bei „Diesen und alle folgenden“ betroffen?
+  const { count: folgende } =
+    r?.serie_id && typeof r.zeitraum === "string"
+      ? await supabase.from("reservierungen").select("id", { count: "exact", head: true }).eq("serie_id", r.serie_id).rangeGte("zeitraum", r.zeitraum)
+      : { count: null };
   const z = r && typeof r.zeitraum === "string" ? parseZeitraum(r.zeitraum) : null;
+  const abbrechen = raeumeHref(zustand, { bearbeiten: null }, "#belegung");
+
+  if (zustand.sperre) {
+    const t = z && sperrTage(z);
+    const sperreBearbeiten =
+      r && t ? { id: r.id, abbrechen, werte: { raum_id: r.raum_id, datum: t.von, bis_datum: t.bis === t.von ? "" : t.bis, hinweis: r.zweck ?? "" } } : undefined;
+    return (
+      <>
+        {!zustand.bearbeiten && <FormularWahl zustand={zustand} />}
+        {zustand.bearbeiten && !sperreBearbeiten && (
+          <p role="alert" className={fehlerBox}>
+            Diese Sperre kann hier nicht bearbeitet werden.
+          </p>
+        )}
+        <SperreFormular
+          key={`${zustand.raum}-${zustand.datum}-${sperreBearbeiten?.id}`}
+          raeume={raeume}
+          raumId={zustand.raum}
+          datum={zustand.datum ?? ""}
+          bearbeiten={sperreBearbeiten}
+        />
+      </>
+    );
+  }
+
   const bearbeiten =
     r && z
       ? {
           id: r.id,
-          abbrechen: raeumeHref(zustand, { bearbeiten: null }, "#belegung"),
+          abbrechen,
+          folgende: folgende && folgende > 1 ? folgende : undefined,
           werte: {
             raum_id: r.raum_id,
             datum: inBerlin(z.start).datum,
@@ -291,13 +415,17 @@ async function ReservierungBereich({
             zweck: r.zweck ?? "",
             ansprechpartner: r.ansprechpartner ?? "",
             telefon: r.telefon ?? "",
-            veranstalter_id: r.veranstalter_id,
+            veranstalter_id: r.veranstalter_id ?? "",
+            wiederholung: "",
+            wiederholen_bis: "",
+            umfang: "einzeln",
           },
         }
       : undefined;
 
   return (
     <>
+      {sitzung.istAdmin && !zustand.bearbeiten && <FormularWahl zustand={zustand} />}
       {zustand.bearbeiten && !bearbeiten && (
         <p role="alert" className={fehlerBox}>
           Diese Reservierung kann hier nicht bearbeitet werden.
@@ -309,10 +437,29 @@ async function ReservierungBereich({
         raumId={zustand.raum}
         datum={zustand.datum ?? ""}
         eigenerVeranstalter={sitzung.veranstalter}
-        veranstalterAuswahl={sitzung.istAdmin ? veranstalterListe.map(({ id, name }) => ({ id, name })) : null}
+        veranstalterAuswahl={veranstalterAuswahl(sitzung, veranstalterListe)}
         bearbeiten={bearbeiten}
       />
     </>
+  );
+}
+
+/** Nur Admin: zwischen Reservieren und Sperren umschalten. */
+function FormularWahl({ zustand }: { zustand: Zustand }) {
+  const knopf = (an: boolean) =>
+    `flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold no-underline ${
+      an ? "bg-surface text-ink shadow-[0_1px_3px_rgba(23,32,27,0.12)] hover:text-ink" : "text-muted-strong hover:text-ink"
+    }`;
+  return (
+    <nav aria-label="Reservieren oder sperren" className="flex gap-1 rounded-control bg-bg p-1">
+      <Link href={raeumeHref(zustand, { sperre: false }, "#reservieren")} scroll={false} aria-current={!zustand.sperre ? "true" : undefined} className={knopf(!zustand.sperre)}>
+        Reservieren
+      </Link>
+      <Link href={raeumeHref(zustand, { sperre: true }, "#reservieren")} scroll={false} aria-current={zustand.sperre ? "true" : undefined} className={knopf(zustand.sperre)}>
+        <LockIcon className="size-4" />
+        Sperren
+      </Link>
+    </nav>
   );
 }
 
