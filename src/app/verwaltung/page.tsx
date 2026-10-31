@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { erfolgBox, fehlerBox } from "@/components/formular/stile";
 import { PencilIcon } from "@/components/icons";
 import { VeranstalterTag } from "@/components/kalender/veranstalter-tag";
-import { getTermin, getTermineZwischen, getVeranstalter } from "@/lib/daten";
+import { getRaeume, getTermin, getTermineZwischen, getVeranstalter } from "@/lib/daten";
 import { beginnText, datumKurzBereich, heute, plusTage } from "@/lib/datum";
 import { darfSchreiben, veranstalterAuswahl } from "@/lib/rechte";
 import { getSitzung } from "@/lib/sitzung";
@@ -22,8 +22,9 @@ async function VerwaltungInhalt({ searchParams }: { searchParams: PageProps<"/ve
 
   const params = await searchParams;
   const bearbeitenId = erster(params.bearbeiten);
-  const [veranstalterListe, bearbeiten] = await Promise.all([
+  const [veranstalterListe, raeume, bearbeiten] = await Promise.all([
     getVeranstalter(),
+    getRaeume(),
     bearbeitenId ? getTermin(bearbeitenId) : Promise.resolve(null),
   ]);
   const veranstalter = new Map(veranstalterListe.map((v) => [v.id, v]));
@@ -63,6 +64,7 @@ async function VerwaltungInhalt({ searchParams }: { searchParams: PageProps<"/ve
             key={termin?.id ?? "neu"}
             termin={termin}
             eigenerVeranstalter={sitzung.veranstalter?.id ?? ""}
+            raumNamen={raeume.map((r) => r.name)}
             veranstalterAuswahl={veranstalterAuswahl(sitzung, veranstalterListe)}
           />
         </section>

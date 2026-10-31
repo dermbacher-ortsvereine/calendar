@@ -9,6 +9,9 @@ import {
   EigenesPasswort,
   LogoVerwalten,
   PasswortZuruecksetzen,
+  RaumBearbeiten,
+  RaumLoeschen,
+  RaumNeu,
   VeranstalterBearbeiten,
   VeranstalterNeu,
 } from "@/app/admin/formulare";
@@ -36,10 +39,12 @@ async function AdminInhalt() {
   }
 
   const supabase = await createSessionClient();
-  const [{ data: veranstalter }, zugaenge] = await Promise.all([
+  const [{ data: veranstalter }, { data: raeume }, zugaenge] = await Promise.all([
     supabase.from("veranstalter").select("*").order("sortierung").order("name"),
+    supabase.from("raeume").select("*").order("sortierung").order("name"),
     vorhandeneZugaenge(),
   ]);
+  const naechsteSortierung = Math.max(0, ...(raeume ?? []).map((r) => r.sortierung)) + 10;
 
   return (
     <div className="flex flex-col gap-6">
@@ -99,6 +104,39 @@ async function AdminInhalt() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section aria-labelledby="raeume-titel" className="flex flex-col gap-3">
+        <h2 id="raeume-titel" className="font-display text-[21px] font-bold">Räume</h2>
+        <p className="text-[15px] text-muted-strong">Räume, die unter „Räume“ belegt und reserviert werden können.</p>
+        <ul className="flex flex-col gap-3">
+          {(raeume ?? []).map((r) => (
+            <li key={r.id}>
+              <details className="group rounded-card border border-line bg-surface">
+                <summary className="flex min-h-14 cursor-pointer list-none flex-wrap items-center gap-3 px-5 py-3 [&::-webkit-details-marker]:hidden">
+                  <span className="text-[15px] font-semibold">{r.name}</span>
+                  <span className="text-[13px] text-muted">
+                    {r.id} · Reihenfolge {r.sortierung}
+                  </span>
+                  <span aria-hidden="true" className="ml-auto text-muted transition-transform group-open:rotate-180">▾</span>
+                </summary>
+                <div className="flex flex-col gap-6 border-t border-line px-5 py-5">
+                  <RaumBearbeiten r={{ id: r.id, name: r.name, sortierung: r.sortierung }} />
+                  {(raeume ?? []).length > 1 && (
+                    <div className="flex flex-col gap-3 border-t border-line-soft pt-5">
+                      <h3 className={unterTitel}>Löschen</h3>
+                      <RaumLoeschen id={r.id} name={r.name} />
+                    </div>
+                  )}
+                </div>
+              </details>
+            </li>
+          ))}
+        </ul>
+        <div className={karte}>
+          <h3 className="font-display text-[19px] font-bold">Neuer Raum</h3>
+          <RaumNeu sortierung={naechsteSortierung} />
+        </div>
       </section>
 
       <div className="grid items-start gap-5 lg:grid-cols-2">

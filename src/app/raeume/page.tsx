@@ -163,7 +163,7 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
 
   return (
     <>
-      <nav aria-label="Raum wählen" className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+      <nav aria-label="Raum wählen" className="grid grid-cols-1 gap-3.5 sm:grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
         {raeume.map((r) => {
           const an = r.id === raum.id;
           const n = new Set(proRaum(r.id).map((b) => b.id)).size;

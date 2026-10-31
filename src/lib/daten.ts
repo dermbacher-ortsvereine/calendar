@@ -80,6 +80,7 @@ export async function getTermin(id: string): Promise<Termin | null> {
 }
 
 export const TAG_RESERVIERUNGEN = "reservierungen";
+export const TAG_RAEUME = "raeume";
 
 export type Raum = Tables<"raeume">;
 
@@ -102,7 +103,7 @@ export type Belegung = {
 export async function getRaeume(): Promise<Raum[]> {
   "use cache";
   cacheLife("kalender");
-  cacheTag(TAG_VERANSTALTER);
+  cacheTag(TAG_RAEUME);
   const { data, error } = await createPublicClient().from("raeume").select("*").order("sortierung");
   if (error) throw error;
   return data;
