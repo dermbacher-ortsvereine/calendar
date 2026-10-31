@@ -100,8 +100,9 @@ export async function passwortSetzen(vorher: AdminZustand, formData: FormData): 
   if (pwFehler) return { fehler: pwFehler, feldFehler: { passwort: pwFehler }, version };
 
   const supabase = await createSessionClient();
-  const { data: v } = await supabase.from("veranstalter").select("login_email").eq("id", id).maybeSingle();
+  const { data: v } = await supabase.from("veranstalter").select("login_email, gemeinsam").eq("id", id).maybeSingle();
   if (!v) return { fehler: "Veranstalter nicht gefunden.", version };
+  if (v.gemeinsam) return { fehler: "Gemeinsame Veranstalter haben keinen eigenen Zugang.", version };
 
   const res = await zugangSetzen(v.login_email, passwort, { veranstalter_id: id, ist_admin: false });
   if (res.fehler) return { fehler: `Das hat nicht geklappt: ${res.fehler}`, version };

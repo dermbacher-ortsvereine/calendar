@@ -39,7 +39,7 @@ export function TerminFormular({
   eigenerVeranstalter,
 }: {
   termin: Termin | null;
-  /** nur für den Admin: alle Veranstalter zur Auswahl */
+  /** Admin: alle Veranstalter; sonst eigener und gemeinsame (null, wenn es nichts zu wählen gibt) */
   veranstalterAuswahl: { id: string; name: string }[] | null;
   eigenerVeranstalter: string;
 }) {

@@ -8,6 +8,7 @@ import { ChevronLeftIcon, ChevronRightIcon, LockIcon, PencilIcon } from "@/compo
 import { getBelegung, getRaeume, getVeranstalter, type Belegung, type Veranstalter } from "@/lib/daten";
 import { datumKurz, heute, plusTage, tagMonat, wochentagLang } from "@/lib/datum";
 import { inBerlin, parseZeitraum, sperrTage, wochenMontag } from "@/lib/reservierung";
+import { darfSchreiben, veranstalterAuswahl } from "@/lib/rechte";
 import { getSitzung, type Sitzung } from "@/lib/sitzung";
 import { createSessionClient } from "@/lib/supabase/server";
 import { ReservierungFormular } from "@/app/raeume/reservierung-formular";
@@ -38,6 +39,8 @@ type Eintrag = {
   zeit: string;
   start: number;
   v: Veranstalter | undefined;
+  /** wer eingetragen hat, falls nicht der Veranstalter selbst (z. B. bei „Ortsvereine Dermbach“) */
+  eingetragenVon: Veranstalter | undefined;
   /** Sperre durch den Admin; `zweck` ist der Hinweis, `zeit` beschreibt die gesperrten Tage */
   gesperrt: boolean;
   zweck: string | null;
@@ -62,6 +65,7 @@ function eintraege(belegung: Belegung[], veranstalter: Map<string, Veranstalter>
           zeit,
           start: z.start.getTime(),
           v: undefined,
+          eingetragenVon: undefined,
           gesperrt: true,
           zweck: b.zweck,
         }));
@@ -76,6 +80,7 @@ function eintraege(belegung: Belegung[], veranstalter: Map<string, Veranstalter>
           zeit: `${s.zeit}–${e.zeit}`,
           start: z.start.getTime(),
           v: veranstalter.get(b.veranstalter_id ?? ""),
+          eingetragenVon: b.eingetragen_von && b.eingetragen_von !== b.veranstalter_id ? veranstalter.get(b.eingetragen_von) : undefined,
           gesperrt: false,
           zweck: b.zweck,
         },
@@ -89,7 +94,7 @@ const eintragKnopf =
   "relative flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md bg-surface/70 after:absolute after:-inset-1.5 hover:bg-surface";
 
 const darfAendern = (sitzung: Sitzung | null, b: Eintrag) =>
-  !!sitzung && (sitzung.istAdmin || (!b.gesperrt && sitzung.veranstalter?.id === b.v?.id));
+  !!sitzung && (sitzung.istAdmin || (!b.gesperrt && darfSchreiben(sitzung, b.v?.id)));
 
 const navKnopf =
   "flex size-11 items-center justify-center rounded-control border border-line-input bg-surface text-ink hover:bg-accent-hover hover:text-ink";
@@ -257,6 +262,7 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
                           <>
                             <span className="text-[13px] font-semibold">{b.v?.name ?? "Belegt"}</span>
                             {b.zweck && <span className="text-xs text-muted-strong">{b.zweck}</span>}
+                            {b.eingetragenVon && <span className="text-xs text-muted-strong">eingetragen von {b.eingetragenVon.name}</span>}
                           </>
                         )}
                       </div>
@@ -322,7 +328,7 @@ async function ReservierungBereich({
     );
   }
 
-  // RLS liefert nur eigene Reservierungen (Admin: alle) – fremde IDs ergeben hier nichts.
+  // RLS liefert nur eigene und gemeinsame Reservierungen (Admin: alle) – fremde IDs ergeben hier nichts.
   const { data: r } = zustand.bearbeiten
     ? await (await createSessionClient())
         .from("reservierungen")
@@ -389,7 +395,7 @@ async function ReservierungBereich({
         raumId={zustand.raum}
         datum={zustand.datum ?? ""}
         eigenerVeranstalter={sitzung.veranstalter}
-        veranstalterAuswahl={sitzung.istAdmin ? veranstalterListe.map(({ id, name }) => ({ id, name })) : null}
+        veranstalterAuswahl={veranstalterAuswahl(sitzung, veranstalterListe)}
         bearbeiten={bearbeiten}
       />
     </>

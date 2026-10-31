@@ -64,7 +64,9 @@ async function AdminInhalt() {
                   <span className="text-[13px] text-muted">
                     {v.kuerzel} · Reihenfolge {v.sortierung}
                     {!v.aktiv && " · inaktiv"}
-                    {zugaenge && !zugaenge.has(v.login_email.toLowerCase()) && " · noch kein Zugang"}
+                    {v.gemeinsam
+                      ? " · gemeinsam, ohne eigenen Zugang"
+                      : zugaenge && !zugaenge.has(v.login_email.toLowerCase()) && " · noch kein Zugang"}
                   </span>
                   <span aria-hidden="true" className="ml-auto text-muted transition-transform group-open:rotate-180">▾</span>
                 </summary>
@@ -78,10 +80,19 @@ async function AdminInhalt() {
                   </div>
                   <div className="flex flex-col gap-3 border-t border-line-soft pt-5">
                     <h3 className={unterTitel}>Zugang</h3>
-                    <p className="text-sm text-muted">
-                      Interne Login-Adresse: <code>{v.login_email}</code> (wird beim Login automatisch verwendet)
-                    </p>
-                    <PasswortZuruecksetzen id={v.id} name={v.name} />
+                    {v.gemeinsam ? (
+                      <p className="text-sm text-muted">
+                        Gemeinsamer Veranstalter: kein eigener Zugang. Alle Veranstalter können in seinem Namen Termine und
+                        Reservierungen eintragen, ändern und löschen.
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-muted">
+                          Interne Login-Adresse: <code>{v.login_email}</code> (wird beim Login automatisch verwendet)
+                        </p>
+                        <PasswortZuruecksetzen id={v.id} name={v.name} />
+                      </>
+                    )}
                   </div>
                 </div>
               </details>

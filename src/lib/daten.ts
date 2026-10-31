@@ -4,12 +4,12 @@ import type { Tables } from "@/lib/database.types";
 
 export type Veranstalter = Pick<
   Tables<"veranstalter">,
-  "id" | "name" | "kuerzel" | "farbe" | "farbe_hg" | "logo_url" | "sortierung"
+  "id" | "name" | "kuerzel" | "farbe" | "farbe_hg" | "logo_url" | "sortierung" | "gemeinsam"
 >;
 export type Termin = Omit<Tables<"termine">, "erstellt_am">;
 
 const TERMIN_SPALTEN =
-  "id, veranstalter_id, titel, datum, bis_datum, beginn, ende, ort, beschreibung, ansprechpartner, geaendert_am";
+  "id, veranstalter_id, titel, datum, bis_datum, beginn, ende, ort, beschreibung, ansprechpartner, geaendert_am, eingetragen_von";
 
 // Cache-Tags: nach Änderungen per updateTag()/revalidateTag() neu laden.
 export const TAG_TERMINE = "termine";
@@ -21,7 +21,7 @@ export async function getVeranstalter(): Promise<Veranstalter[]> {
   cacheTag(TAG_VERANSTALTER);
   const { data, error } = await createPublicClient()
     .from("veranstalter")
-    .select("id, name, kuerzel, farbe, farbe_hg, logo_url, sortierung")
+    .select("id, name, kuerzel, farbe, farbe_hg, logo_url, sortierung, gemeinsam")
     .eq("aktiv", true)
     .order("sortierung")
     .order("name");
@@ -91,6 +91,8 @@ export type Belegung = {
   /** Sperre durch den Admin; `zweck` ist dann der Hinweis */
   gesperrt: boolean;
   zweck: string | null;
+  /** Veranstalter, der eingetragen hat (bei gemeinsamen Veranstaltern interessant); null beim Admin */
+  eingetragen_von: string | null;
   /** tstzrange als Text, siehe parseZeitraum() */
   zeitraum: string;
 };
@@ -111,12 +113,12 @@ export async function getBelegung(von: string, bis: string): Promise<Belegung[]>
   cacheTag(TAG_RESERVIERUNGEN);
   const { data, error } = await createPublicClient()
     .from("reservierungen_oeffentlich")
-    .select("id, raum_id, veranstalter_id, zweck, zeitraum, gesperrt")
+    .select("id, raum_id, veranstalter_id, zweck, zeitraum, gesperrt, eingetragen_von")
     .overlaps("zeitraum", `[${von} 00:00 Europe/Berlin,${bis} 00:00 Europe/Berlin)`);
   if (error) throw error;
   return (data ?? []).flatMap((b) =>
     b.id && b.raum_id && typeof b.zeitraum === "string"
-      ? [{ id: b.id, raum_id: b.raum_id, veranstalter_id: b.veranstalter_id, gesperrt: !!b.gesperrt, zweck: b.zweck, zeitraum: b.zeitraum }]
+      ? [{ id: b.id, raum_id: b.raum_id, veranstalter_id: b.veranstalter_id, gesperrt: !!b.gesperrt, zweck: b.zweck, eingetragen_von: b.eingetragen_von, zeitraum: b.zeitraum }]
       : [],
   );
 }

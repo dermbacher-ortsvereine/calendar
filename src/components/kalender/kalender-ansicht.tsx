@@ -7,6 +7,7 @@ import type { Termin, Veranstalter } from "@/lib/daten";
 import { beginnText, datumKurzBereich, monatsName, monatsRaster, monatVon, plusMonate, plusTage } from "@/lib/datum";
 import { monatImFenster, VORSCHAU_TAGE, type Fenster } from "@/lib/kalender-fenster";
 import { istAktiv, kalenderHref, leseZustand, type Ansicht, type KalenderZustand } from "@/lib/kalender-url";
+import { darfSchreiben, type Schreibrechte } from "@/lib/rechte";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from "@/components/icons";
 import { AboBox } from "@/components/kalender/abo-box";
 import { DetailSheet } from "@/components/kalender/detail-sheet";
@@ -72,8 +73,8 @@ export function KalenderAnsicht({
   heute: string;
   /** per Link geöffneter Termin außerhalb des Fensters */
   einzelTermin: Termin | null;
-  /** angemeldeter Veranstalter bzw. Admin: darf eigene Termine direkt bearbeiten */
-  bearbeiter: { istAdmin: boolean; veranstalterId: string | null } | null;
+  /** angemeldeter Veranstalter bzw. Admin: darf eigene (und gemeinsame) Termine direkt bearbeiten */
+  bearbeiter: Schreibrechte | null;
 }) {
   const router = useRouter();
   const [laedt, startTransition] = useTransition();
@@ -101,8 +102,7 @@ export function KalenderAnsicht({
   const gewaehltV = gewaehlt ? veranstalter.get(gewaehlt.veranstalter_id) : undefined;
   const schliessenHref = kalenderHref(zustand, { termin: null });
   const beschaeftigt = laedt || !abgedeckt;
-  const darfBearbeiten =
-    !!gewaehlt && !!bearbeiter && (bearbeiter.istAdmin || bearbeiter.veranstalterId === gewaehlt.veranstalter_id);
+  const darfBearbeiten = !!gewaehlt && darfSchreiben(bearbeiter, gewaehlt.veranstalter_id);
 
   return (
     <main className="mx-auto flex max-w-[1240px] flex-col gap-[18px] px-4 py-6 sm:px-6">

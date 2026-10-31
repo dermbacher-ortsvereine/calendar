@@ -7,6 +7,7 @@ import { PencilIcon } from "@/components/icons";
 import { VeranstalterTag } from "@/components/kalender/veranstalter-tag";
 import { getTermin, getTermineZwischen, getVeranstalter } from "@/lib/daten";
 import { beginnText, datumKurzBereich, heute, plusTage } from "@/lib/datum";
+import { darfSchreiben, veranstalterAuswahl } from "@/lib/rechte";
 import { getSitzung } from "@/lib/sitzung";
 import { LoeschenKnopf } from "@/app/verwaltung/loeschen-knopf";
 import { TerminFormular } from "@/app/verwaltung/termin-formular";
@@ -27,12 +28,10 @@ async function VerwaltungInhalt({ searchParams }: { searchParams: PageProps<"/ve
   ]);
   const veranstalter = new Map(veranstalterListe.map((v) => [v.id, v]));
 
-  const darfBearbeiten = (veranstalterId: string) =>
-    sitzung.istAdmin || sitzung.veranstalter?.id === veranstalterId;
-  const termin = bearbeiten && darfBearbeiten(bearbeiten.veranstalter_id) ? bearbeiten : null;
+  const termin = bearbeiten && darfSchreiben(sitzung, bearbeiten.veranstalter_id) ? bearbeiten : null;
 
   const ab = heute();
-  const termine = (await getTermineZwischen(ab, plusTage(ab, 730))).filter((t) => darfBearbeiten(t.veranstalter_id));
+  const termine = (await getTermineZwischen(ab, plusTage(ab, 730))).filter((t) => darfSchreiben(sitzung, t.veranstalter_id));
 
   const meldung = erster(params.gespeichert)
     ? { art: "ok", text: "Termin gespeichert – er ist ab sofort im öffentlichen Kalender sichtbar." }
@@ -64,9 +63,7 @@ async function VerwaltungInhalt({ searchParams }: { searchParams: PageProps<"/ve
             key={termin?.id ?? "neu"}
             termin={termin}
             eigenerVeranstalter={sitzung.veranstalter?.id ?? ""}
-            veranstalterAuswahl={
-              sitzung.istAdmin ? veranstalterListe.map(({ id, name }) => ({ id, name })) : null
-            }
+            veranstalterAuswahl={veranstalterAuswahl(sitzung, veranstalterListe)}
           />
         </section>
 
@@ -83,6 +80,8 @@ async function VerwaltungInhalt({ searchParams }: { searchParams: PageProps<"/ve
             <ul>
               {termine.map((t) => {
                 const v = veranstalter.get(t.veranstalter_id);
+                const eingetragenVon =
+                  t.eingetragen_von && t.eingetragen_von !== t.veranstalter_id ? veranstalter.get(t.eingetragen_von) : undefined;
                 return (
                   <li
                     key={t.id}
@@ -95,11 +94,12 @@ async function VerwaltungInhalt({ searchParams }: { searchParams: PageProps<"/ve
                       <span className="text-[13px] text-muted">
                         {datumKurzBereich(t.datum, t.bis_datum)} · {beginnText(t.beginn)}{t.ort ? ` · ${t.ort}` : ""}
                       </span>
-                      {sitzung.istAdmin && v && (
+                      {v && (sitzung.istAdmin || v.gemeinsam) && (
                         <span className="mt-1">
                           <VeranstalterTag v={v} />
                         </span>
                       )}
+                      {eingetragenVon && <span className="text-xs text-muted">eingetragen von {eingetragenVon.name}</span>}
                     </div>
                     <Link
                       href={`/verwaltung?bearbeiten=${t.id}`}

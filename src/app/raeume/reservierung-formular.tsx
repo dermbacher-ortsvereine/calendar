@@ -19,7 +19,7 @@ export function ReservierungFormular({
   raeume: { id: string; name: string }[];
   raumId: string;
   datum: string;
-  /** nur für den Admin */
+  /** Admin: alle; sonst eigener und gemeinsame Veranstalter (null, wenn es nichts zu wählen gibt) */
   veranstalterAuswahl: { id: string; name: string }[] | null;
   eigenerVeranstalter: { id: string; name: string } | null;
   /** bestehende Reservierung ändern; `abbrechen`: Link zurück zum leeren Formular */

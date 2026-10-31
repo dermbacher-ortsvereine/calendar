@@ -15,6 +15,7 @@ import {
   type ReservierungEingabe,
   type SperreEingabe,
 } from "@/lib/reservierung";
+import { darfSchreiben } from "@/lib/rechte";
 import { getSitzung } from "@/lib/sitzung";
 import { createPublicClient } from "@/lib/supabase/public";
 import { createSessionClient } from "@/lib/supabase/server";
@@ -65,7 +66,8 @@ export async function reservieren(vorher: ReservierungZustand, formData: FormDat
     return { fehler: "Bitte die markierten Felder prüfen.", feldFehler: pruefung.fehler, werte, version };
   }
 
-  const veranstalterId = sitzung.istAdmin ? werte.veranstalter_id : sitzung.veranstalter?.id;
+  // Wie bei Terminen: eigener oder gemeinsamer Veranstalter, der Admin wählt frei. RLS prüft zusätzlich.
+  const veranstalterId = darfSchreiben(sitzung, werte.veranstalter_id) ? werte.veranstalter_id : sitzung.veranstalter?.id;
   if (!veranstalterId) {
     return { fehler: "Bitte den Veranstalter auswählen.", feldFehler: { veranstalter_id: "Bitte auswählen." }, werte, version };
   }
