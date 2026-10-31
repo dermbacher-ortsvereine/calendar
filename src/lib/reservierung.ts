@@ -14,6 +14,8 @@ export type ReservierungEingabe = {
   wiederholung: string;
   /** letzter möglicher Tag der Reihe */
   wiederholen_bis: string;
+  /** Bearbeiten in einer Reihe: "folgende" = diesen und alle folgenden Termine, sonst nur diesen */
+  umfang: string;
 };
 
 export type ReservierungDaten = {
@@ -65,6 +67,7 @@ export function eingabeAusFormData(formData: FormData): ReservierungEingabe {
     veranstalter_id: wert("veranstalter_id"),
     wiederholung: wert("wiederholung"),
     wiederholen_bis: wert("wiederholen_bis"),
+    umfang: wert("umfang"),
   };
 }
 

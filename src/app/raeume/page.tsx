@@ -125,6 +125,7 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
   };
   const anzahl = (k: string) => Number(erster(params[k])) || 1;
   const ausgelassen = Number(erster(params.ausgelassen)) || 0;
+  const unveraendert = Number(erster(params.unveraendert)) || 0;
   const meldung = erster(params.reserviert)
     ? {
         ok: true,
@@ -136,7 +137,15 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
             : "Reservierung eingetragen – sie erscheint jetzt im Belegungsplan.",
       }
     : erster(params.geaendert)
-      ? { ok: true, text: "Reservierung geändert." }
+      ? {
+          ok: true,
+          text:
+            anzahl("geaendert") > 1
+              ? `${anzahl("geaendert")} Reservierungen geändert.${
+                  unveraendert ? ` ${unveraendert} schon belegte ${unveraendert === 1 ? "Tag bleibt" : "Tage bleiben"} wie bisher.` : ""
+                }`
+              : "Reservierung geändert.",
+        }
       : erster(params.storniert)
         ? { ok: true, text: anzahl("storniert") > 1 ? `${anzahl("storniert")} Reservierungen storniert.` : "Reservierung storniert." }
         : erster(params.gesperrt)
@@ -352,14 +361,20 @@ async function ReservierungBereich({
   }
 
   // RLS liefert nur eigene und gemeinsame Reservierungen (Admin: alle) – fremde IDs ergeben hier nichts.
+  const supabase = await createSessionClient();
   const { data: r } = zustand.bearbeiten
-    ? await (await createSessionClient())
+    ? await supabase
         .from("reservierungen")
-        .select("id, raum_id, veranstalter_id, zeitraum, zweck, ansprechpartner, telefon, gesperrt")
+        .select("id, raum_id, veranstalter_id, zeitraum, zweck, ansprechpartner, telefon, gesperrt, serie_id")
         .eq("id", zustand.bearbeiten)
         .eq("gesperrt", zustand.sperre)
         .maybeSingle()
     : { data: null };
+  // Teil einer Reihe: wie viele Termine wären bei „Diesen und alle folgenden“ betroffen?
+  const { count: folgende } =
+    r?.serie_id && typeof r.zeitraum === "string"
+      ? await supabase.from("reservierungen").select("id", { count: "exact", head: true }).eq("serie_id", r.serie_id).rangeGte("zeitraum", r.zeitraum)
+      : { count: null };
   const z = r && typeof r.zeitraum === "string" ? parseZeitraum(r.zeitraum) : null;
   const abbrechen = raeumeHref(zustand, { bearbeiten: null }, "#belegung");
 
@@ -391,6 +406,7 @@ async function ReservierungBereich({
       ? {
           id: r.id,
           abbrechen,
+          folgende: folgende && folgende > 1 ? folgende : undefined,
           werte: {
             raum_id: r.raum_id,
             datum: inBerlin(z.start).datum,
@@ -402,6 +418,7 @@ async function ReservierungBereich({
             veranstalter_id: r.veranstalter_id ?? "",
             wiederholung: "",
             wiederholen_bis: "",
+            umfang: "einzeln",
           },
         }
       : undefined;

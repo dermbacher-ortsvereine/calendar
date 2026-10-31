@@ -28,6 +28,7 @@ const gut: ReservierungEingabe = {
   veranstalter_id: "mv",
   wiederholung: "",
   wiederholen_bis: "",
+  umfang: "",
 };
 
 test("Zeitraum-Literal in Berliner Zeit", () => {

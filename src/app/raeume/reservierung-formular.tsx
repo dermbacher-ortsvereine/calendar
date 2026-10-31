@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { reservieren, type ReservierungZustand } from "@/app/raeume/actions";
 import { feldKlasse, fehlerBox, labelKlasse, primaerKnopf, sekundaerKnopf } from "@/components/formular/stile";
+import { datumKurz } from "@/lib/datum";
 import { WIEDERHOLUNGEN, wiederholungsText, type ReservierungEingabe } from "@/lib/reservierung";
 
 const feld = `${feldKlasse} min-h-11 text-[15px]`;
@@ -22,8 +23,11 @@ export function ReservierungFormular({
   /** Admin: alle; sonst eigener und gemeinsame Veranstalter (null, wenn es nichts zu wählen gibt) */
   veranstalterAuswahl: { id: string; name: string }[] | null;
   eigenerVeranstalter: { id: string; name: string } | null;
-  /** bestehende Reservierung ändern; `abbrechen`: Link zurück zum leeren Formular */
-  bearbeiten?: { id: string; werte: ReservierungEingabe; abbrechen: string };
+  /**
+   * bestehende Reservierung ändern; `abbrechen`: Link zurück zum leeren Formular;
+   * `folgende`: Teil einer Reihe – Zahl der Termine ab diesem (inklusive)
+   */
+  bearbeiten?: { id: string; werte: ReservierungEingabe; abbrechen: string; folgende?: number };
 }) {
   const [zustand, aktion, laeuft] = useActionState<ReservierungZustand, FormData>(reservieren, { version: 0 });
   const w: ReservierungEingabe = zustand.werte ?? bearbeiten?.werte ?? {
@@ -37,10 +41,14 @@ export function ReservierungFormular({
     veranstalter_id: eigenerVeranstalter?.id ?? "",
     wiederholung: "",
     wiederholen_bis: "",
+    umfang: "",
   };
   // Datum und Rhythmus steuern die Texte im Auswahlfeld und das Feld „bis“
   const [tag, setTag] = useState(w.datum);
   const [wiederholung, setWiederholung] = useState(w.wiederholung);
+  // Reihe bearbeiten: „Nur diesen Termin“ ist vorausgewählt
+  const [umfang, setUmfang] = useState(w.umfang === "folgende" ? "folgende" : "einzeln");
+  const reihe = !!bearbeiten?.folgende && umfang === "folgende";
   const f = zustand.feldFehler ?? {};
   const fehler = (k: keyof ReservierungEingabe) =>
     f[k] ? (
@@ -55,6 +63,32 @@ export function ReservierungFormular({
   return (
     <form key={zustand.version} action={aktion} className="flex flex-col gap-3.5" noValidate>
       {bearbeiten && <input type="hidden" name="id" value={bearbeiten.id} />}
+      {bearbeiten?.folgende && (
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className="mb-1.5 text-sm font-semibold">Was ändern?</legend>
+          {[
+            { wert: "einzeln", text: `Nur diesen Termin (${datumKurz(bearbeiten.werte.datum)})` },
+            { wert: "folgende", text: `Diesen und alle folgenden (${bearbeiten.folgende} Termine)` },
+          ].map((o) => (
+            <label
+              key={o.wert}
+              className={`flex min-h-11 cursor-pointer items-center gap-2.5 rounded-control border px-3 text-[15px] ${
+                umfang === o.wert ? "border-accent bg-accent-soft font-semibold" : "border-line-input bg-surface"
+              }`}
+            >
+              <input
+                type="radio"
+                name="umfang"
+                value={o.wert}
+                checked={umfang === o.wert}
+                onChange={() => setUmfang(o.wert)}
+                className="size-4 accent-[#24573A]"
+              />
+              {o.text}
+            </label>
+          ))}
+        </fieldset>
+      )}
       {zustand.fehler && (
         <p role="alert" className={fehlerBox}>
           {zustand.fehler}
@@ -71,11 +105,21 @@ export function ReservierungFormular({
         </select>
         {fehler("raum_id")}
       </label>
-      <label className={labelKlasse}>
-        Datum
-        <input type="date" name="datum" defaultValue={w.datum} onChange={(e) => setTag(e.target.value)} required className={feld + rahmen("datum")} {...aria("datum")} />
-        {fehler("datum")}
-      </label>
+      {reihe ? (
+        <div className={labelKlasse}>
+          Datum
+          <input type="hidden" name="datum" value={bearbeiten!.werte.datum} />
+          <span className="flex min-h-11 items-center rounded-control bg-bg px-3 text-[15px] font-normal">
+            Jeder Termin behält sein Datum.
+          </span>
+        </div>
+      ) : (
+        <label className={labelKlasse}>
+          Datum
+          <input type="date" name="datum" defaultValue={w.datum} onChange={(e) => setTag(e.target.value)} required className={feld + rahmen("datum")} {...aria("datum")} />
+          {fehler("datum")}
+        </label>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <label className={labelKlasse}>
           Von
@@ -184,16 +228,26 @@ export function ReservierungFormular({
           <button type="submit" name="belegte_auslassen" value="1" disabled={laeuft} className={primaerKnopf}>
             {laeuft
               ? "Wird geprüft …"
-              : zustand.konflikte.frei === 1
-                ? "Den übrigen Termin reservieren"
-                : `Die übrigen ${zustand.konflikte.frei} reservieren`}
+              : `${zustand.konflikte.frei === 1 ? "Den übrigen Termin" : `Die übrigen ${zustand.konflikte.frei}`} ${bearbeiten ? "ändern" : "reservieren"}`}
           </button>
-          <p className="text-[13px] text-muted-strong">Oder oben Datum, Uhrzeit oder Rhythmus ändern und erneut prüfen.</p>
+          <p className="text-[13px] text-muted-strong">
+            {bearbeiten
+              ? "Die belegten Tage bleiben wie bisher. Oder oben die Uhrzeit ändern und erneut prüfen."
+              : "Oder oben Datum, Uhrzeit oder Rhythmus ändern und erneut prüfen."}
+          </p>
         </div>
       )}
       <div className="flex flex-wrap gap-2.5">
         <button type="submit" disabled={laeuft} className={`${zustand.konflikte ? sekundaerKnopf : primaerKnopf} flex-1`}>
-          {laeuft ? "Wird geprüft …" : bearbeiten ? "Speichern" : zustand.konflikte ? "Erneut prüfen" : "Reservieren"}
+          {laeuft
+            ? "Wird geprüft …"
+            : zustand.konflikte
+              ? "Erneut prüfen"
+              : reihe
+                ? `Alle ${bearbeiten!.folgende} speichern`
+                : bearbeiten
+                  ? "Speichern"
+                  : "Reservieren"}
         </button>
         {bearbeiten && (
           <Link href={bearbeiten.abbrechen} scroll={false} className={sekundaerKnopf}>
