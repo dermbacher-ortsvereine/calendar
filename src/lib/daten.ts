@@ -95,6 +95,8 @@ export type Belegung = {
   eingetragen_von: string | null;
   /** tstzrange als Text, siehe parseZeitraum() */
   zeitraum: string;
+  /** gemeinsame ID wiederkehrender Reservierungen */
+  serie_id: string | null;
 };
 
 export async function getRaeume(): Promise<Raum[]> {
@@ -113,12 +115,12 @@ export async function getBelegung(von: string, bis: string): Promise<Belegung[]>
   cacheTag(TAG_RESERVIERUNGEN);
   const { data, error } = await createPublicClient()
     .from("reservierungen_oeffentlich")
-    .select("id, raum_id, veranstalter_id, zweck, zeitraum, gesperrt, eingetragen_von")
+    .select("id, raum_id, veranstalter_id, zweck, zeitraum, gesperrt, eingetragen_von, serie_id")
     .overlaps("zeitraum", `[${von} 00:00 Europe/Berlin,${bis} 00:00 Europe/Berlin)`);
   if (error) throw error;
   return (data ?? []).flatMap((b) =>
     b.id && b.raum_id && typeof b.zeitraum === "string"
-      ? [{ id: b.id, raum_id: b.raum_id, veranstalter_id: b.veranstalter_id, gesperrt: !!b.gesperrt, zweck: b.zweck, eingetragen_von: b.eingetragen_von, zeitraum: b.zeitraum }]
+      ? [{ id: b.id, raum_id: b.raum_id, veranstalter_id: b.veranstalter_id, gesperrt: !!b.gesperrt, zweck: b.zweck, eingetragen_von: b.eingetragen_von, zeitraum: b.zeitraum, serie_id: b.serie_id }]
       : [],
   );
 }

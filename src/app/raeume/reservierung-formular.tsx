@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { reservieren, type ReservierungZustand } from "@/app/raeume/actions";
 import { feldKlasse, fehlerBox, labelKlasse, primaerKnopf, sekundaerKnopf } from "@/components/formular/stile";
-import type { ReservierungEingabe } from "@/lib/reservierung";
+import { WIEDERHOLUNGEN, wiederholungsText, type ReservierungEingabe } from "@/lib/reservierung";
 
 const feld = `${feldKlasse} min-h-11 text-[15px]`;
 
@@ -35,7 +35,12 @@ export function ReservierungFormular({
     ansprechpartner: "",
     telefon: "",
     veranstalter_id: eigenerVeranstalter?.id ?? "",
+    wiederholung: "",
+    wiederholen_bis: "",
   };
+  // Datum und Rhythmus steuern die Texte im Auswahlfeld und das Feld „bis“
+  const [tag, setTag] = useState(w.datum);
+  const [wiederholung, setWiederholung] = useState(w.wiederholung);
   const f = zustand.feldFehler ?? {};
   const fehler = (k: keyof ReservierungEingabe) =>
     f[k] ? (
@@ -68,7 +73,7 @@ export function ReservierungFormular({
       </label>
       <label className={labelKlasse}>
         Datum
-        <input type="date" name="datum" defaultValue={w.datum} required className={feld + rahmen("datum")} {...aria("datum")} />
+        <input type="date" name="datum" defaultValue={w.datum} onChange={(e) => setTag(e.target.value)} required className={feld + rahmen("datum")} {...aria("datum")} />
         {fehler("datum")}
       </label>
       <div className="grid grid-cols-2 gap-3">
@@ -83,6 +88,43 @@ export function ReservierungFormular({
           {fehler("bis")}
         </label>
       </div>
+      {!bearbeiten && (
+        <div className="flex flex-col gap-3.5">
+          <label className={labelKlasse}>
+            Wiederholen
+            <select
+              name="wiederholung"
+              value={wiederholung}
+              onChange={(e) => setWiederholung(e.target.value)}
+              className={feld + rahmen("wiederholung")}
+              {...aria("wiederholung")}
+            >
+              <option value="">Nicht wiederholen</option>
+              {WIEDERHOLUNGEN.map((art) => (
+                <option key={art} value={art}>
+                  {wiederholungsText(art, tag)}
+                </option>
+              ))}
+            </select>
+            {fehler("wiederholung")}
+          </label>
+          {wiederholung !== "" && (
+            <label className={labelKlasse}>
+              bis einschließlich
+              <input
+                type="date"
+                name="wiederholen_bis"
+                defaultValue={w.wiederholen_bis}
+                min={tag || undefined}
+                required
+                className={feld + rahmen("wiederholen_bis")}
+                {...aria("wiederholen_bis")}
+              />
+              {fehler("wiederholen_bis")}
+            </label>
+          )}
+        </div>
+      )}
       {veranstalterAuswahl ? (
         <label className={labelKlasse}>
           Veranstalter
@@ -128,9 +170,30 @@ export function ReservierungFormular({
           {fehler("telefon")}
         </label>
       </div>
+      {zustand.konflikte && (
+        <div role="alert" className="flex flex-col gap-2.5 rounded-control border border-[#E8C468] bg-[#FFF6DB] p-3.5 text-[15px] leading-normal text-ink">
+          <p className="font-semibold">
+            {zustand.konflikte.belegt.length} von {zustand.konflikte.belegt.length + zustand.konflikte.frei} Terminen{" "}
+            {zustand.konflikte.belegt.length === 1 ? "ist" : "sind"} schon belegt:
+          </p>
+          <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
+            {zustand.konflikte.belegt.map((b) => (
+              <li key={b}>{b}</li>
+            ))}
+          </ul>
+          <button type="submit" name="belegte_auslassen" value="1" disabled={laeuft} className={primaerKnopf}>
+            {laeuft
+              ? "Wird geprüft …"
+              : zustand.konflikte.frei === 1
+                ? "Den übrigen Termin reservieren"
+                : `Die übrigen ${zustand.konflikte.frei} reservieren`}
+          </button>
+          <p className="text-[13px] text-muted-strong">Oder oben Datum, Uhrzeit oder Rhythmus ändern und erneut prüfen.</p>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2.5">
-        <button type="submit" disabled={laeuft} className={`${primaerKnopf} flex-1`}>
-          {laeuft ? "Wird geprüft …" : bearbeiten ? "Speichern" : "Reservieren"}
+        <button type="submit" disabled={laeuft} className={`${zustand.konflikte ? sekundaerKnopf : primaerKnopf} flex-1`}>
+          {laeuft ? "Wird geprüft …" : bearbeiten ? "Speichern" : zustand.konflikte ? "Erneut prüfen" : "Reservieren"}
         </button>
         {bearbeiten && (
           <Link href={bearbeiten.abbrechen} scroll={false} className={sekundaerKnopf}>

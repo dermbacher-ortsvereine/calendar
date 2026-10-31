@@ -10,6 +10,10 @@ export type ReservierungEingabe = {
   ansprechpartner: string;
   telefon: string;
   veranstalter_id: string;
+  /** leer = einmalig, sonst ein Wert aus WIEDERHOLUNGEN */
+  wiederholung: string;
+  /** letzter möglicher Tag der Reihe */
+  wiederholen_bis: string;
 };
 
 export type ReservierungDaten = {
@@ -59,16 +63,27 @@ export function eingabeAusFormData(formData: FormData): ReservierungEingabe {
     ansprechpartner: wert("ansprechpartner"),
     telefon: wert("telefon"),
     veranstalter_id: wert("veranstalter_id"),
+    wiederholung: wert("wiederholung"),
+    wiederholen_bis: wert("wiederholen_bis"),
   };
 }
 
 export function pruefeReservierung(
   e: ReservierungEingabe,
   raumIds: string[],
-): { ok: true; daten: ReservierungDaten } | { ok: false; fehler: Partial<Record<keyof ReservierungEingabe, string>> } {
+):
+  | { ok: true; daten: ReservierungDaten; /** alle Tage der Reihe (einmalig: nur `datum`) */ tage: string[] }
+  | { ok: false; fehler: Partial<Record<keyof ReservierungEingabe, string>> } {
   const fehler: Partial<Record<keyof ReservierungEingabe, string>> = {};
   if (!raumIds.includes(e.raum_id)) fehler.raum_id = "Bitte einen Raum wählen.";
   if (!gueltigesDatum(e.datum)) fehler.datum = "Bitte ein gültiges Datum wählen.";
+  if (e.wiederholung !== "" && !istWiederholung(e.wiederholung)) fehler.wiederholung = "Bitte auswählen.";
+  else if (e.wiederholung !== "") {
+    if (!gueltigesDatum(e.wiederholen_bis)) fehler.wiederholen_bis = "Bitte den letzten Tag wählen.";
+    else if (gueltigesDatum(e.datum) && e.wiederholen_bis < e.datum) fehler.wiederholen_bis = "Darf nicht vor dem ersten Tag liegen.";
+    else if (gueltigesDatum(e.datum) && tageZwischen(e.datum, e.wiederholen_bis) > MAX_WIEDERHOLUNG_TAGE)
+      fehler.wiederholen_bis = "Höchstens ein Jahr nach dem ersten Tag.";
+  }
   if (!ZEIT.test(e.von)) fehler.von = "Bitte die Startzeit wählen.";
   if (!ZEIT.test(e.bis)) fehler.bis = "Bitte die Endzeit wählen.";
   else if (ZEIT.test(e.von) && e.von.slice(0, 5) === e.bis.slice(0, 5)) fehler.bis = "Von und Bis dürfen nicht gleich sein.";
@@ -86,7 +101,104 @@ export function pruefeReservierung(
       ansprechpartner: leerZuNull(e.ansprechpartner, 120),
       telefon: leerZuNull(e.telefon, 40),
     },
+    tage: istWiederholung(e.wiederholung) ? wiederholungsTage(e.datum, e.wiederholung, e.wiederholen_bis) : [e.datum],
   };
+}
+
+// --- Wiederkehrende Reservierungen: bewusst nur drei Rhythmen ---
+
+export const WIEDERHOLUNGEN = ["woechentlich", "zweiwoechentlich", "monatlich"] as const;
+export type Wiederholung = (typeof WIEDERHOLUNGEN)[number];
+
+const MAX_WIEDERHOLUNG_TAGE = 366;
+
+const istWiederholung = (w: string): w is Wiederholung => (WIEDERHOLUNGEN as readonly string[]).includes(w);
+
+const WOCHENTAG = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+
+function utcTag(datum: string): Date {
+  const [y, m, d] = datum.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+/** Der wievielte Wochentag im Monat: 1–4, oder -1 für den letzten (ab dem 29.). */
+export function wochentagImMonat(datum: string): number {
+  const tag = Number(datum.slice(8, 10));
+  return tag > 28 ? -1 : Math.ceil(tag / 7);
+}
+
+/** n-ter (bzw. bei -1 letzter) Wochentag `wt` im Monat `monat` (0-basiert, darf überlaufen). */
+function nterWochentag(jahr: number, monat: number, wt: number, n: number): string {
+  if (n === -1) {
+    const letzter = new Date(Date.UTC(jahr, monat + 1, 0));
+    letzter.setUTCDate(letzter.getUTCDate() - ((letzter.getUTCDay() - wt + 7) % 7));
+    return letzter.toISOString().slice(0, 10);
+  }
+  const erster = new Date(Date.UTC(jahr, monat, 1));
+  erster.setUTCDate(1 + ((wt - erster.getUTCDay() + 7) % 7) + (n - 1) * 7);
+  return erster.toISOString().slice(0, 10);
+}
+
+/** Alle Tage einer Reihe von `datum` bis einschließlich `bis`. */
+export function wiederholungsTage(datum: string, art: Wiederholung, bis: string): string[] {
+  const tage: string[] = [];
+  if (art === "monatlich") {
+    const start = utcTag(datum);
+    const n = wochentagImMonat(datum);
+    for (let i = 0; ; i++) {
+      const tag = nterWochentag(start.getUTCFullYear(), start.getUTCMonth() + i, start.getUTCDay(), n);
+      if (tag > bis) break;
+      tage.push(tag);
+    }
+    return tage;
+  }
+  const schritt = art === "woechentlich" ? 7 : 14;
+  for (const t = utcTag(datum); t.toISOString().slice(0, 10) <= bis; t.setUTCDate(t.getUTCDate() + schritt)) {
+    tage.push(t.toISOString().slice(0, 10));
+  }
+  return tage;
+}
+
+/** Texte für das Auswahlfeld, passend zum gewählten Datum („Jede Woche (dienstags)“). */
+export function wiederholungsText(art: Wiederholung, datum: string): string {
+  const wt = gueltigesDatum(datum) ? WOCHENTAG[utcTag(datum).getUTCDay()] : null;
+  switch (art) {
+    case "woechentlich":
+      return wt ? `Jede Woche (${wt.toLowerCase()}s)` : "Jede Woche";
+    case "zweiwoechentlich":
+      return wt ? `Alle 2 Wochen (${wt.toLowerCase()}s)` : "Alle 2 Wochen";
+    case "monatlich": {
+      if (!wt) return "Jeden Monat (gleicher Wochentag)";
+      const n = wochentagImMonat(datum);
+      return `Jeden Monat am ${n === -1 ? "letzten" : `${n}.`} ${wt}`;
+    }
+  }
+}
+
+/** Beginn und Ende als Zeitpunkte (wie zeitraumLiteral, aber in JS gerechnet). */
+export function zeitraumGrenzen(datum: string, von: string, bis: string): { start: Date; ende: Date } {
+  const v = von.slice(0, 5);
+  const b = bis.slice(0, 5);
+  return { start: berlinZeitpunkt(datum, v), ende: berlinZeitpunkt(b <= v ? folgetag(datum) : datum, b) };
+}
+
+export const ueberschneiden = (a: { start: Date; ende: Date }, b: { start: Date; ende: Date }) =>
+  a.start < b.ende && b.start < a.ende;
+
+/** Berliner Ortszeit -> Zeitpunkt (Versatz an der Stelle bestimmen, zweimal wegen Zeitumstellung). */
+function berlinZeitpunkt(datum: string, zeit: string): Date {
+  const [y, m, d] = datum.split("-").map(Number);
+  const [h, min] = zeit.split(":").map(Number);
+  const ziel = Date.UTC(y, m - 1, d, h, min);
+  const versatz = (t: number) => {
+    const b = inBerlin(new Date(t));
+    const [by, bm, bd] = b.datum.split("-").map(Number);
+    const [bh, bmin] = b.zeit.split(":").map(Number);
+    return Date.UTC(by, bm - 1, bd, bh, bmin) - t;
+  };
+  let t = ziel - versatz(ziel);
+  t = ziel - versatz(t);
+  return new Date(t);
 }
 
 // --- Raumsperren (nur Admin): ganze Tage, mit Hinweis ---

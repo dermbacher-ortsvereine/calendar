@@ -3,7 +3,7 @@
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { getRaeume, getVeranstalter, TAG_RESERVIERUNGEN } from "@/lib/daten";
-import { datumKurz } from "@/lib/datum";
+import { datumKurz, plusTage } from "@/lib/datum";
 import {
   eingabeAusFormData,
   inBerlin,
@@ -12,6 +12,9 @@ import {
   pruefeSperre,
   sperreAusFormData,
   sperrTage,
+  ueberschneiden,
+  zeitraumGrenzen,
+  zeitraumLiteral,
   type ReservierungEingabe,
   type SperreEingabe,
 } from "@/lib/reservierung";
@@ -24,11 +27,15 @@ export type ReservierungZustand = {
   fehler?: string;
   feldFehler?: Partial<Record<keyof ReservierungEingabe, string>>;
   werte?: ReservierungEingabe;
+  /** Reihe mit belegten Tagen: Beschreibung je belegtem Tag und Zahl der freien Tage */
+  konflikte?: { belegt: string[]; frei: number };
   version: number;
 };
 
-/** Beschreibt bestehende Belegungen, die mit dem gewünschten Zeitraum kollidieren. */
-async function konfliktText(raumId: string, zeitraum: string): Promise<string> {
+type Belegt = { start: Date; ende: Date; text: string };
+
+/** Bestehende Belegungen eines Raums im Zeitraum, jeweils mit lesbarer Beschreibung. */
+async function belegungen(raumId: string, zeitraum: string): Promise<Belegt[]> {
   const [{ data }, veranstalter] = await Promise.all([
     createPublicClient()
       .from("reservierungen_oeffentlich")
@@ -38,19 +45,38 @@ async function konfliktText(raumId: string, zeitraum: string): Promise<string> {
     getVeranstalter(),
   ]);
   const namen = new Map(veranstalter.map((v) => [v.id, v.name]));
-  const teile = (data ?? []).flatMap((b) => {
+  return (data ?? []).flatMap((b) => {
     const z = typeof b.zeitraum === "string" ? parseZeitraum(b.zeitraum) : null;
     if (!z) return [];
     if (b.gesperrt) {
       const t = sperrTage(z);
       const tage = t.von === t.bis ? datumKurz(t.von) : `${datumKurz(t.von)} bis ${datumKurz(t.bis)}`;
-      return [`${tage} gesperrt${b.zweck ? ` (${b.zweck})` : ""}`];
+      return [{ ...z, text: `${tage} gesperrt${b.zweck ? ` (${b.zweck})` : ""}` }];
     }
     const s = inBerlin(z.start);
     const e = inBerlin(z.ende);
-    return [`${datumKurz(s.datum)}, ${s.zeit}–${e.zeit} Uhr (${namen.get(b.veranstalter_id ?? "") ?? "belegt"}${b.zweck ? `: ${b.zweck}` : ""})`];
+    return [{ ...z, text: `${datumKurz(s.datum)}, ${s.zeit}–${e.zeit} Uhr (${namen.get(b.veranstalter_id ?? "") ?? "belegt"}${b.zweck ? `: ${b.zweck}` : ""})` }];
   });
+}
+
+/** Beschreibt bestehende Belegungen, die mit dem gewünschten Zeitraum kollidieren. */
+async function konfliktText(raumId: string, zeitraum: string): Promise<string> {
+  const teile = (await belegungen(raumId, zeitraum)).map((b) => b.text);
   return teile.length ? ` Bereits belegt: ${teile.join("; ")}.` : "";
+}
+
+/** Reihe: welche Tage sind schon belegt? Tag -> Beschreibung der Belegung(en). */
+async function belegteTage(e: ReservierungEingabe, tage: string[]): Promise<Map<string, string>> {
+  // Bis zum übernächsten Tag: Reservierungen über Mitternacht reichen in den Folgetag.
+  const gesamt = `["${tage[0]} 00:00 Europe/Berlin","${plusTage(tage[tage.length - 1], 2)} 00:00 Europe/Berlin")`;
+  const vorhanden = await belegungen(e.raum_id, gesamt);
+  const belegt = new Map<string, string>();
+  for (const tag of tage) {
+    const z = zeitraumGrenzen(tag, e.von, e.bis);
+    const treffer = vorhanden.filter((b) => ueberschneiden(z, b));
+    if (treffer.length) belegt.set(tag, treffer.map((b) => b.text).join("; "));
+  }
+  return belegt;
 }
 
 /** Legt eine Reservierung an oder ändert sie (mit Feld `id`). */
@@ -75,6 +101,38 @@ export async function reservieren(vorher: ReservierungZustand, formData: FormDat
   const supabase = await createSessionClient();
   const id = String(formData.get("id") ?? "");
   const daten = { ...pruefung.daten, veranstalter_id: veranstalterId };
+  const raumName = raeume.find((r) => r.id === werte.raum_id)?.name ?? "Der Raum";
+
+  // Neue Reihe: belegte Tage vorab ermitteln und auf Wunsch auslassen; alle übrigen in einem Schritt anlegen.
+  if (!id && werte.wiederholung !== "") {
+    const belegt = await belegteTage(werte, pruefung.tage);
+    const frei = pruefung.tage.filter((t) => !belegt.has(t));
+    if (frei.length === 0) {
+      return { fehler: `${raumName} ist an allen ${pruefung.tage.length} Tagen schon belegt.`, werte, version };
+    }
+    if (belegt.size > 0 && formData.get("belegte_auslassen") !== "1") {
+      return { konflikte: { belegt: [...belegt.values()], frei: frei.length }, werte, version };
+    }
+    const serieId = crypto.randomUUID();
+    const { error } = await supabase
+      .from("reservierungen")
+      .insert(frei.map((tag) => ({ ...daten, zeitraum: zeitraumLiteral(tag, werte.von, werte.bis), serie_id: serieId })));
+    if (error) {
+      return {
+        fehler:
+          error.code === "23P01"
+            ? `${raumName} wurde gerade an einem dieser Tage reserviert. Bitte noch einmal auf „Reservieren“ tippen.`
+            : "Die Reservierungen konnten nicht gespeichert werden. Bitte später noch einmal versuchen.",
+        werte,
+        version,
+      };
+    }
+    updateTag(TAG_RESERVIERUNGEN);
+    const q = new URLSearchParams({ raum: werte.raum_id, woche: werte.datum, reserviert: String(frei.length) });
+    if (belegt.size) q.set("ausgelassen", String(belegt.size));
+    redirect(`/raeume?${q}#belegung`);
+  }
+
   const { data, error } = id
     ? await supabase.from("reservierungen").update(daten).eq("id", id).eq("gesperrt", false).select("id")
     : await supabase.from("reservierungen").insert(daten).select("id");
@@ -82,9 +140,8 @@ export async function reservieren(vorher: ReservierungZustand, formData: FormDat
   if (error || !data?.length) {
     // 23P01 = exclusion_violation: Überschneidung mit einer bestehenden Reservierung
     if (error?.code === "23P01") {
-      const raum = raeume.find((r) => r.id === werte.raum_id)?.name ?? "Der Raum";
       return {
-        fehler: `${raum} ist in dieser Zeit schon reserviert.${await konfliktText(werte.raum_id, pruefung.daten.zeitraum)}`,
+        fehler: `${raumName} ist in dieser Zeit schon reserviert.${await konfliktText(werte.raum_id, pruefung.daten.zeitraum)}`,
         werte,
         version,
       };
@@ -153,13 +210,21 @@ export async function reservierungLoeschen(formData: FormData) {
 
   const id = String(formData.get("id") ?? "");
   const supabase = await createSessionClient();
-  const { data } = await supabase.from("reservierungen").delete().eq("id", id).select("gesperrt");
+  // „Diesen und alle folgenden“: alle Zeilen der Reihe, die nicht vor dieser beginnen (RLS prüft die Rechte).
+  const { data: reihe } =
+    formData.get("umfang") === "folgende"
+      ? await supabase.from("reservierungen").select("serie_id, zeitraum").eq("id", id).maybeSingle()
+      : { data: null };
+  const { data } =
+    reihe?.serie_id && typeof reihe.zeitraum === "string"
+      ? await supabase.from("reservierungen").delete().eq("serie_id", reihe.serie_id).rangeGte("zeitraum", reihe.zeitraum).select("gesperrt")
+      : await supabase.from("reservierungen").delete().eq("id", id).select("gesperrt");
 
   updateTag(TAG_RESERVIERUNGEN);
   const q = new URLSearchParams({
     raum: String(formData.get("raum") ?? ""),
     woche: String(formData.get("woche") ?? ""),
-    [data?.length ? (data[0].gesperrt ? "entsperrt" : "storniert") : "fehler"]: "1",
+    [data?.length ? (data[0].gesperrt ? "entsperrt" : "storniert") : "fehler"]: String(data?.length || 1),
   });
   redirect(`/raeume?${q}#belegung`);
 }

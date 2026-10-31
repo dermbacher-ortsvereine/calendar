@@ -4,7 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { erfolgBox, fehlerBox, primaerKnopf } from "@/components/formular/stile";
-import { ChevronLeftIcon, ChevronRightIcon, LockIcon, PencilIcon } from "@/components/icons";
+import { ChevronLeftIcon, ChevronRightIcon, LockIcon, PencilIcon, RepeatIcon } from "@/components/icons";
 import { getBelegung, getRaeume, getVeranstalter, type Belegung, type Veranstalter } from "@/lib/daten";
 import { datumKurz, heute, plusTage, tagMonat, wochentagLang } from "@/lib/datum";
 import { inBerlin, parseZeitraum, sperrTage, wochenMontag } from "@/lib/reservierung";
@@ -44,6 +44,8 @@ type Eintrag = {
   /** Sperre durch den Admin; `zweck` ist der Hinweis, `zeit` beschreibt die gesperrten Tage */
   gesperrt: boolean;
   zweck: string | null;
+  /** Teil einer wiederkehrenden Reservierung */
+  serie: boolean;
 };
 
 function eintraege(belegung: Belegung[], veranstalter: Map<string, Veranstalter>, montag: string): Eintrag[] {
@@ -68,6 +70,7 @@ function eintraege(belegung: Belegung[], veranstalter: Map<string, Veranstalter>
           eingetragenVon: undefined,
           gesperrt: true,
           zweck: b.zweck,
+          serie: false,
         }));
       }
       const s = inBerlin(z.start);
@@ -83,6 +86,7 @@ function eintraege(belegung: Belegung[], veranstalter: Map<string, Veranstalter>
           eingetragenVon: b.eingetragen_von && b.eingetragen_von !== b.veranstalter_id ? veranstalter.get(b.eingetragen_von) : undefined,
           gesperrt: false,
           zweck: b.zweck,
+          serie: !!b.serie_id,
         },
       ];
     })
@@ -119,12 +123,22 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
     bearbeiten: sitzung && bearbeitenParam ? bearbeitenParam : null,
     sperre: !!sitzung?.istAdmin && erster(params.sperre) === "1",
   };
+  const anzahl = (k: string) => Number(erster(params[k])) || 1;
+  const ausgelassen = Number(erster(params.ausgelassen)) || 0;
   const meldung = erster(params.reserviert)
-    ? { ok: true, text: "Reservierung eingetragen – sie erscheint jetzt im Belegungsplan." }
+    ? {
+        ok: true,
+        text:
+          anzahl("reserviert") > 1
+            ? `${anzahl("reserviert")} Reservierungen eingetragen – sie erscheinen jetzt im Belegungsplan.${
+                ausgelassen ? ` ${ausgelassen} schon belegte ${ausgelassen === 1 ? "Tag wurde" : "Tage wurden"} ausgelassen.` : ""
+              }`
+            : "Reservierung eingetragen – sie erscheint jetzt im Belegungsplan.",
+      }
     : erster(params.geaendert)
       ? { ok: true, text: "Reservierung geändert." }
       : erster(params.storniert)
-        ? { ok: true, text: "Reservierung storniert." }
+        ? { ok: true, text: anzahl("storniert") > 1 ? `${anzahl("storniert")} Reservierungen storniert.` : "Reservierung storniert." }
         : erster(params.gesperrt)
           ? { ok: true, text: "Raum gesperrt – an diesen Tagen kann niemand mehr reservieren." }
           : erster(params.entsperrt)
@@ -231,7 +245,15 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
                               Gesperrt
                             </span>
                           ) : (
-                            <span className="text-[13px] font-bold">{b.zeit}</span>
+                            <span className="flex items-center gap-1 text-[13px] font-bold">
+                              {b.zeit}
+                              {b.serie && (
+                                <>
+                                  <RepeatIcon className="size-3.5" />
+                                  <span className="sr-only">(wiederkehrend)</span>
+                                </>
+                              )}
+                            </span>
                           )}
                           {darfAendern(sitzung, b) && (
                             <span className="-mt-0.5 -mr-0.5 ml-auto flex gap-1.5">
@@ -246,6 +268,7 @@ async function RaeumeInhalt({ searchParams }: { searchParams: PageProps<"/raeume
                                 id={b.id}
                                 beschreibung={beschreibung}
                                 sperre={b.gesperrt}
+                                serie={b.serie}
                                 raum={zustand.raum}
                                 woche={zustand.woche}
                                 className={`${eintragKnopf} text-[#B3261E]`}
@@ -377,6 +400,8 @@ async function ReservierungBereich({
             ansprechpartner: r.ansprechpartner ?? "",
             telefon: r.telefon ?? "",
             veranstalter_id: r.veranstalter_id ?? "",
+            wiederholung: "",
+            wiederholen_bis: "",
           },
         }
       : undefined;

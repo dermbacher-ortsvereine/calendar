@@ -5,10 +5,25 @@ import { useFormStatus } from "react-dom";
 import { reservierungLoeschen } from "@/app/raeume/actions";
 import { TrashIcon } from "@/components/icons";
 
-function Bestaetigen({ sperre }: { sperre: boolean }) {
+const rotKnopf = "min-h-11 cursor-pointer rounded-control bg-[#B3261E] px-3 text-sm font-semibold text-white hover:bg-[#8C1D17]";
+
+function Bestaetigen({ sperre, serie }: { sperre: boolean; serie: boolean }) {
   const { pending } = useFormStatus();
+  if (serie) {
+    // Wiederkehrende Reservierung: nur diesen Tag oder auch alle folgenden der Reihe
+    return (
+      <>
+        <button type="submit" name="umfang" value="einzeln" disabled={pending} className={rotKnopf}>
+          {pending ? "Wird storniert …" : "Nur diesen Termin"}
+        </button>
+        <button type="submit" name="umfang" value="folgende" disabled={pending} className={rotKnopf}>
+          Diesen und alle folgenden
+        </button>
+      </>
+    );
+  }
   return (
-    <button type="submit" disabled={pending} className="min-h-11 cursor-pointer rounded-control bg-[#B3261E] px-3 text-sm font-semibold text-white hover:bg-[#8C1D17]">
+    <button type="submit" disabled={pending} className={rotKnopf}>
       {pending ? (sperre ? "Wird aufgehoben …" : "Wird storniert …") : sperre ? "Ja, aufheben" : "Ja, stornieren"}
     </button>
   );
@@ -19,6 +34,7 @@ export function StornierenKnopf({
   id,
   beschreibung,
   sperre = false,
+  serie = false,
   raum,
   woche,
   className,
@@ -27,6 +43,8 @@ export function StornierenKnopf({
   beschreibung: string;
   /** Sperre statt Reservierung: „aufheben“ statt „stornieren“ */
   sperre?: boolean;
+  /** Teil einer Reihe: Rückfrage „Nur diesen Termin“ / „Diesen und alle folgenden“ */
+  serie?: boolean;
   raum: string;
   woche: string;
   className: string;
@@ -45,9 +63,9 @@ export function StornierenKnopf({
       <input type="hidden" name="raum" value={raum} />
       <input type="hidden" name="woche" value={woche} />
       <span role="alert" className="w-full text-[13px] font-semibold text-[#8C1D17]">
-        {sperre ? "Sperre wirklich aufheben?" : "Wirklich stornieren?"}
+        {sperre ? "Sperre wirklich aufheben?" : serie ? "Welche Termine stornieren?" : "Wirklich stornieren?"}
       </span>
-      <Bestaetigen sperre={sperre} />
+      <Bestaetigen sperre={sperre} serie={serie} />
       <button type="button" autoFocus onClick={() => setFrage(false)} className="min-h-11 cursor-pointer rounded-control border border-line-input bg-surface px-3 text-sm font-semibold text-ink">
         Abbrechen
       </button>
