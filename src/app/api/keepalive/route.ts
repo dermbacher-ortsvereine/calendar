@@ -2,10 +2,10 @@ import { createPublicClient } from "@/lib/supabase/public";
 
 /**
  * Hält das Supabase-Projekt wach: Free-Projekte werden nach 7 Tagen ohne Aktivität pausiert
- * und starten nicht von selbst wieder. Vercel Cron ruft diese Route täglich auf (vercel.json).
+ * und starten nicht von selbst wieder. Ein Vercel-Schedule ruft diese Route täglich auf (vercel.json).
  * Bewusst ungecacht, damit die Anfrage wirklich bei der Datenbank ankommt.
  *
- * Vercel schickt bei Cron-Aufrufen automatisch `Authorization: Bearer <CRON_SECRET>`,
+ * Vercel schickt bei Schedule-Aufrufen (Pfad-Ziel) automatisch `Authorization: Bearer <CRON_SECRET>`,
  * sofern die Umgebungsvariable CRON_SECRET gesetzt ist.
  */
 export async function GET(request: Request) {
