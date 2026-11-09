@@ -11,7 +11,7 @@ import { KalenderMitUrl } from "@/components/kalender/kalender-ansicht";
  */
 async function kalenderDaten() {
   "use cache";
-  cacheLife("startseite");
+  cacheLife("seiten");
   cacheTag(TAG_TERMINE, TAG_VERANSTALTER);
   const heute = heuteBerlin();
   const fenster = ladeFenster(heute, null);

@@ -1,18 +1,36 @@
 import type { Metadata } from "next";
+import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { getTermin, getVeranstalter } from "@/lib/daten";
-import { darfSchreiben } from "@/lib/rechte";
-import { getSitzung } from "@/lib/sitzung";
+import { getTermin, getVeranstalter, TAG_TERMINE, TAG_VERANSTALTER } from "@/lib/daten";
 import { datumLangBereich, zeitraumText } from "@/lib/datum";
 import { ChevronLeftIcon } from "@/components/icons";
-import { TerminDetails } from "@/components/kalender/termin-details";
+import { TerminDetailsSeite } from "@/components/kalender/termin-details-seite";
+
+/**
+ * Mindestens ein Parameter ist mit Cache Components Pflicht. Termine werden beim ersten Aufruf
+ * erzeugt und danach aus dem Cache ausgeliefert (ISR); der Platzhalter ergibt nur „nicht gefunden“.
+ */
+export function generateStaticParams() {
+  return [{ id: "00000000-0000-0000-0000-000000000000" }];
+}
+
+/** Für alle Besucher gleich (ohne Login), damit die Seite gecacht werden kann. */
+async function terminSeite(id: string) {
+  "use cache";
+  cacheLife("seiten");
+  cacheTag(TAG_TERMINE, TAG_VERANSTALTER);
+  const [termin, veranstalter] = await Promise.all([getTermin(id), getVeranstalter()]);
+  const v = termin && veranstalter.find((x) => x.id === termin.veranstalter_id);
+  return termin && v ? { termin, veranstalter: v } : null;
+}
 
 export async function generateMetadata(props: PageProps<"/termin/[id]">): Promise<Metadata> {
   const { id } = await props.params;
-  const termin = await getTermin(id);
-  if (!termin) return { title: "Termin nicht gefunden" };
+  const daten = await terminSeite(id);
+  if (!daten) return { title: "Termin nicht gefunden" };
+  const { termin } = daten;
   return {
     title: termin.titel,
     description: `${datumLangBereich(termin.datum, termin.bis_datum)}, ${zeitraumText(termin.beginn, termin.ende)}${
@@ -23,13 +41,11 @@ export async function generateMetadata(props: PageProps<"/termin/[id]">): Promis
 
 async function TerminInhalt({ params }: { params: PageProps<"/termin/[id]">["params"] }) {
   const { id } = await params;
-  const [termin, veranstalter, sitzung] = await Promise.all([getTermin(id), getVeranstalter(), getSitzung()]);
-  const v = termin && veranstalter.find((x) => x.id === termin.veranstalter_id);
-  if (!termin || !v) notFound();
-  const darfBearbeiten = darfSchreiben(sitzung, termin.veranstalter_id);
+  const daten = await terminSeite(id);
+  if (!daten) notFound();
   return (
     <div className="rounded-card border border-line bg-surface p-[22px]">
-      <TerminDetails termin={termin} veranstalter={v} ueberschrift="h1" bearbeiten={darfBearbeiten ? { zurueck: "/" } : undefined} />
+      <TerminDetailsSeite termin={daten.termin} veranstalter={daten.veranstalter} />
     </div>
   );
 }
