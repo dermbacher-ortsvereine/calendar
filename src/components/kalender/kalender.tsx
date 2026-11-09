@@ -10,10 +10,9 @@ import { KalenderAnsicht } from "@/components/kalender/kalender-ansicht";
 export async function Kalender({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
   const params = await searchParams;
   const veranstalterListe = await getVeranstalter();
-  const zustand = leseZustand(params, veranstalterListe.map((v) => v.id));
-
   await io(); // "heute" erst zur Anfragezeit bestimmen, nicht beim Prerendern
   const heute = heuteBerlin();
+  const zustand = leseZustand(params, veranstalterListe.map((v) => v.id), heute);
   const fenster = ladeFenster(heute, zustand.monat);
   const [termine, sitzung] = await Promise.all([getTermineZwischen(fenster.von, fenster.bis), getSitzung()]);
   const einzelTermin =

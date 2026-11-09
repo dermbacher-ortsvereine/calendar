@@ -2,11 +2,18 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useTransition } from "react";
+import { useEffect, useTransition, type ReactNode } from "react";
 import type { Termin, Veranstalter } from "@/lib/daten";
-import { beginnText, datumKurzBereich, monatsName, monatsRaster, monatVon, plusMonate, plusTage } from "@/lib/datum";
+import { beginnText, datumKurzBereich, monatsName, monatsRaster, monatVon, plusMonate, plusTage, type Monat } from "@/lib/datum";
 import { monatImFenster, VORSCHAU_TAGE, type Fenster } from "@/lib/kalender-fenster";
-import { istAktiv, kalenderHref, leseZustand, type Ansicht, type KalenderZustand } from "@/lib/kalender-url";
+import {
+  imBlaetterBereich,
+  istAktiv,
+  kalenderHref,
+  leseZustand,
+  type Ansicht,
+  type KalenderZustand,
+} from "@/lib/kalender-url";
 import { darfSchreiben, type Schreibrechte } from "@/lib/rechte";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from "@/components/icons";
 import { AboBox } from "@/components/kalender/abo-box";
@@ -31,6 +38,34 @@ function sichtbarkeit(ansicht: Ansicht | null, art: Ansicht, display: "block" | 
 
 const navButton =
   "flex size-11 items-center justify-center rounded-control border border-line-input bg-surface text-ink hover:bg-accent-hover hover:text-ink";
+
+/** ‹ › – am Ende des Blätterbereichs ausgegraut statt Link (keine endlosen URLs für Crawler). */
+function BlaetterLink({
+  monat,
+  heute,
+  href,
+  label,
+  children,
+}: {
+  monat: Monat;
+  heute: string;
+  href: string;
+  label: string;
+  children: ReactNode;
+}) {
+  if (!imBlaetterBereich(monat, heute)) {
+    return (
+      <span role="link" aria-disabled="true" aria-label={label} className={`${navButton} pointer-events-none opacity-40`}>
+        {children}
+      </span>
+    );
+  }
+  return (
+    <KalenderLink href={href} aria-label={label} className={navButton}>
+      {children}
+    </KalenderLink>
+  );
+}
 
 function Umschalter({ aktiv, zustand }: { aktiv: Ansicht; zustand: KalenderZustand }) {
   const knopf = (art: Ansicht, label: string) => (
@@ -79,7 +114,7 @@ export function KalenderAnsicht({
   const router = useRouter();
   const [laedt, startTransition] = useTransition();
   const veranstalter = new Map(veranstalterListe.map((v) => [v.id, v]));
-  const zustand = leseZustand(Object.fromEntries(useSearchParams()), veranstalterListe.map((v) => v.id));
+  const zustand = leseZustand(Object.fromEntries(useSearchParams()), veranstalterListe.map((v) => v.id), heute);
 
   const monat = zustand.monat ?? monatVon(heute);
   const raster = monatsRaster(monat);
@@ -108,23 +143,25 @@ export function KalenderAnsicht({
     <main className="mx-auto flex max-w-[1240px] flex-col gap-[18px] px-4 py-6 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className={`${sichtbarkeit(zustand.ansicht, "monat", "flex")} flex-wrap items-center gap-2`}>
-          <KalenderLink
+          <BlaetterLink
+            monat={plusMonate(monat, -1)}
+            heute={heute}
             href={kalenderHref(zustand, { monat: plusMonate(monat, -1), termin: null })}
-            aria-label="Vorheriger Monat"
-            className={navButton}
+            label="Vorheriger Monat"
           >
             <ChevronLeftIcon className="size-[18px]" />
-          </KalenderLink>
+          </BlaetterLink>
           <h1 className="mx-1 min-w-[150px] text-center font-display text-2xl font-bold sm:mx-1.5 sm:min-w-[210px] sm:text-[28px]" aria-live="polite">
             {monatsName(monat)}
           </h1>
-          <KalenderLink
+          <BlaetterLink
+            monat={plusMonate(monat, 1)}
+            heute={heute}
             href={kalenderHref(zustand, { monat: plusMonate(monat, 1), termin: null })}
-            aria-label="Nächster Monat"
-            className={navButton}
+            label="Nächster Monat"
           >
             <ChevronRightIcon className="size-[18px]" />
-          </KalenderLink>
+          </BlaetterLink>
           <KalenderLink
             href={kalenderHref(zustand, { monat: null, termin: null })}
             className="inline-flex min-h-11 items-center rounded-control border border-line-input bg-surface px-3 text-[15px] sm:px-4 font-semibold text-ink no-underline hover:bg-accent-hover hover:text-ink"

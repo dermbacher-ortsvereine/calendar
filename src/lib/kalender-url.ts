@@ -4,7 +4,18 @@
 //   ?m=2026-11      angezeigter Monat (leer = aktueller Monat)
 //   ?termin=<uuid>  geöffnete Detailansicht
 
-import { istMonat, type Monat } from "@/lib/datum";
+import { istMonat, monatVon, plusMonate, type Monat } from "./datum.ts";
+
+/**
+ * So weit lässt sich vom aktuellen Monat aus blättern. Begrenzt die Zahl der Kalender-URLs,
+ * damit Crawler nicht endlos über ‹ › in Vergangenheit und Zukunft laufen.
+ */
+export const BLAETTERN_MONATE = 24;
+
+export function imBlaetterBereich(monat: Monat, heute: string): boolean {
+  const aktuell = monatVon(heute);
+  return monat >= plusMonate(aktuell, -BLAETTERN_MONATE) && monat <= plusMonate(aktuell, BLAETTERN_MONATE);
+}
 
 export type Ansicht = "monat" | "liste";
 
@@ -19,7 +30,8 @@ type Roh = Record<string, string | string[] | undefined>;
 
 const erster = (wert: string | string[] | undefined) => (Array.isArray(wert) ? wert[0] : wert);
 
-export function leseZustand(params: Roh, gueltigeIds: string[]): KalenderZustand {
+/** Liest den Zustand aus der URL; ungültige Werte und Monate außerhalb des Blätterbereichs fallen weg. */
+export function leseZustand(params: Roh, gueltigeIds: string[], heute: string): KalenderZustand {
   const v = erster(params.v);
   const filter = v ? [...new Set(v.split(",").filter((id) => gueltigeIds.includes(id)))] : [];
   const ansicht = erster(params.ansicht);
@@ -28,7 +40,7 @@ export function leseZustand(params: Roh, gueltigeIds: string[]): KalenderZustand
   return {
     filter: filter.length === gueltigeIds.length ? [] : filter,
     ansicht: ansicht === "monat" || ansicht === "liste" ? ansicht : null,
-    monat: istMonat(monat) ? monat : null,
+    monat: istMonat(monat) && imBlaetterBereich(monat, heute) ? monat : null,
     termin: termin && /^[0-9a-f-]{36}$/i.test(termin) ? termin : null,
   };
 }
