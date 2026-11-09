@@ -1,10 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useTransition, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Termin, Veranstalter } from "@/lib/daten";
-import { beginnText, datumKurzBereich, monatsName, monatsRaster, monatVon, plusMonate, plusTage, type Monat } from "@/lib/datum";
+import {
+  beginnText,
+  datumKurzBereich,
+  heute as heuteBerlin,
+  monatsName,
+  monatsRaster,
+  monatVon,
+  plusMonate,
+  plusTage,
+  type Monat,
+} from "@/lib/datum";
+import { useImBrowser } from "@/lib/im-browser";
 import { monatImFenster, VORSCHAU_TAGE, type Fenster } from "@/lib/kalender-fenster";
 import {
   imBlaetterBereich,
@@ -14,8 +25,10 @@ import {
   type Ansicht,
   type KalenderZustand,
 } from "@/lib/kalender-url";
-import { darfSchreiben, type Schreibrechte } from "@/lib/rechte";
+import { darfSchreiben } from "@/lib/rechte";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from "@/components/icons";
+import { ladeMonat, ladeTermin } from "@/components/kalender/actions";
+import { useSitzungsInfo } from "@/components/sitzung-store";
 import { AboBox } from "@/components/kalender/abo-box";
 import { DetailSheet } from "@/components/kalender/detail-sheet";
 import { FilterChips } from "@/components/kalender/filter-chips";
@@ -89,64 +102,99 @@ function Umschalter({ aktiv, zustand }: { aktiv: Ansicht; zustand: KalenderZusta
   );
 }
 
+type KalenderDaten = {
+  veranstalterListe: Veranstalter[];
+  /** alle Termine im `fenster` (vom Server, für alle Besucher gleich) */
+  termine: Termin[];
+  fenster: Fenster;
+  /** "heute" beim Erzeugen der Seite; im Browser gilt die eigene Uhr */
+  heute: string;
+};
+
 /**
- * Öffentlicher Kalender. Der Zustand (Filter, Ansicht, Monat, Termin) steht in der URL;
- * alle Termine im `fenster` sind schon geladen, sodass Klicks ohne Serveranfrage umschalten.
- * Nur ein Monat außerhalb des Fensters wird beim Server nachgeladen.
+ * Öffentlicher Kalender. Beim Server-Rendern (statisch, CDN) ohne URL-Zustand: aktueller Monat,
+ * kein Filter. Im Browser kommen Filter, Ansicht, Monat und Termin aus der URL dazu.
  */
-export function KalenderAnsicht({
+export function KalenderMitUrl(daten: KalenderDaten) {
+  return useImBrowser() ? <KalenderMitUrlImBrowser {...daten} /> : <KalenderAnsicht {...daten} params={{}} />;
+}
+
+function KalenderMitUrlImBrowser(daten: KalenderDaten) {
+  const params = Object.fromEntries(useSearchParams());
+  return <KalenderAnsicht {...daten} heute={heuteBerlin()} params={params} />;
+}
+
+/** Holt einmalig nach, was nicht im vorgeladenen Fenster liegt (Monat bzw. Termin per Link). */
+function useNachladen<T>(schluessel: string | null, laden: (s: string) => Promise<T>, leer: T) {
+  const [geladen, setGeladen] = useState<Record<string, T>>({});
+  const fehlt = schluessel !== null && !(schluessel in geladen);
+  useEffect(() => {
+    if (!fehlt) return;
+    let aktiv = true;
+    const fertig = (wert: T) => aktiv && setGeladen((g) => ({ ...g, [schluessel]: wert }));
+    laden(schluessel).then(fertig, (e) => {
+      console.error(e);
+      fertig(leer);
+    });
+    return () => {
+      aktiv = false;
+    };
+  }, [fehlt, schluessel, laden, leer]);
+  return schluessel === null ? undefined : geladen[schluessel];
+}
+
+const KEINE_TERMINE: Termin[] = [];
+
+/**
+ * Alle Termine im `fenster` sind schon geladen, sodass Klicks ohne Serveranfrage umschalten.
+ * Nur ein Monat oder Termin außerhalb des Fensters wird beim Server nachgeladen.
+ */
+function KalenderAnsicht({
   veranstalterListe,
   termine,
   fenster,
   heute,
-  einzelTermin,
-  bearbeiter,
-}: {
-  veranstalterListe: Veranstalter[];
-  termine: Termin[];
-  fenster: Fenster;
-  heute: string;
-  /** per Link geöffneter Termin außerhalb des Fensters */
-  einzelTermin: Termin | null;
-  /** angemeldeter Veranstalter bzw. Admin: darf eigene (und gemeinsame) Termine direkt bearbeiten */
-  bearbeiter: Schreibrechte | null;
-}) {
-  const router = useRouter();
-  const [laedt, startTransition] = useTransition();
+  params,
+}: KalenderDaten & { params: Record<string, string> }) {
+  // angemeldeter Veranstalter bzw. Admin: darf eigene (und gemeinsame) Termine direkt bearbeiten
+  const bearbeiter = useSitzungsInfo();
   const veranstalter = new Map(veranstalterListe.map((v) => [v.id, v]));
-  const zustand = leseZustand(Object.fromEntries(useSearchParams()), veranstalterListe.map((v) => v.id), heute);
+  const zustand = leseZustand(params, veranstalterListe.map((v) => v.id), heute);
 
   const monat = zustand.monat ?? monatVon(heute);
   const raster = monatsRaster(monat);
-  const abgedeckt = monatImFenster(monat, fenster);
-  const href = kalenderHref(zustand);
-
-  useEffect(() => {
-    // Monat außerhalb des Fensters: Server rendert mit der aktuellen URL ein passendes Fenster.
-    if (!abgedeckt) startTransition(() => router.replace(href, { scroll: false }));
-  }, [abgedeckt, href, router]);
+  const imFenster = monatImFenster(monat, fenster);
+  const nachgeladen = useNachladen(imFenster ? null : monat, ladeMonat, KEINE_TERMINE);
+  const monatsQuelle = imFenster ? termine : nachgeladen;
+  const abgedeckt = monatsQuelle !== undefined;
 
   const sichtbar = (t: Termin) => veranstalter.has(t.veranstalter_id) && istAktiv(zustand.filter, t.veranstalter_id);
   const ueberschneidet = (t: Termin, von: string, bis: string) => t.datum <= bis && (t.bis_datum ?? t.datum) >= von;
-  const monatsTermine = termine.filter((t) => sichtbar(t) && ueberschneidet(t, raster[0].tag, raster.at(-1)!.tag));
+  const monatsTermine = (monatsQuelle ?? []).filter(
+    (t) => sichtbar(t) && ueberschneidet(t, raster[0].tag, raster.at(-1)!.tag),
+  );
   const naechste = termine.filter((t) => sichtbar(t) && ueberschneidet(t, heute, plusTage(heute, VORSCHAU_TAGE)));
 
-  const gewaehlt = zustand.termin
-    ? (termine.find((t) => t.id === zustand.termin) ?? (einzelTermin?.id === zustand.termin ? einzelTermin : null))
-    : null;
+  const bekannt = zustand.termin
+    ? (termine.find((t) => t.id === zustand.termin) ?? monatsQuelle?.find((t) => t.id === zustand.termin))
+    : undefined;
+  const einzelTermin = useNachladen(zustand.termin && !bekannt ? zustand.termin : null, ladeTermin, null);
+  const gewaehlt = bekannt ?? einzelTermin ?? null;
   const gewaehltV = gewaehlt ? veranstalter.get(gewaehlt.veranstalter_id) : undefined;
   const schliessenHref = kalenderHref(zustand, { termin: null });
-  const beschaeftigt = laedt || !abgedeckt;
+  const beschaeftigt = !abgedeckt;
   const darfBearbeiten = !!gewaehlt && darfSchreiben(bearbeiter, gewaehlt.veranstalter_id);
+  const vorher = plusMonate(monat, -1);
+  const nachher = plusMonate(monat, 1);
 
   return (
     <main className="mx-auto flex max-w-[1240px] flex-col gap-[18px] px-4 py-6 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className={`${sichtbarkeit(zustand.ansicht, "monat", "flex")} flex-wrap items-center gap-2`}>
           <BlaetterLink
-            monat={plusMonate(monat, -1)}
+            monat={vorher}
             heute={heute}
-            href={kalenderHref(zustand, { monat: plusMonate(monat, -1), termin: null })}
+            href={kalenderHref(zustand, { monat: vorher, termin: null })}
             label="Vorheriger Monat"
           >
             <ChevronLeftIcon className="size-[18px]" />
@@ -155,9 +203,9 @@ export function KalenderAnsicht({
             {monatsName(monat)}
           </h1>
           <BlaetterLink
-            monat={plusMonate(monat, 1)}
+            monat={nachher}
             heute={heute}
-            href={kalenderHref(zustand, { monat: plusMonate(monat, 1), termin: null })}
+            href={kalenderHref(zustand, { monat: nachher, termin: null })}
             label="Nächster Monat"
           >
             <ChevronRightIcon className="size-[18px]" />

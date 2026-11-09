@@ -80,9 +80,10 @@ export default function DatenschutzPage() {
 
       <Abschnitt titel="6. Anmeldung und Cookies">
         <p>
-          Für die Anmeldung der Veranstalter wird ein Sitzungs-Cookie gesetzt. Es ist technisch
-          notwendig, damit die Anmeldung erhalten bleibt (§ 25 Abs. 2 TDDDG), und wird beim
-          Abmelden gelöscht. Besucherinnen und Besucher, die sich nicht anmelden, erhalten keine
+          Für die Anmeldung der Veranstalter wird ein Sitzungs-Cookie gesetzt, dazu ein Hinweis-Cookie
+          „angemeldet“ ohne weiteren Inhalt, an dem die Seite erkennt, dass sie den Anmeldestatus
+          anzeigen soll. Beide sind technisch notwendig, damit die Anmeldung erhalten bleibt
+          (§ 25 Abs. 2 TDDDG), und werden beim Abmelden gelöscht. Besucherinnen und Besucher, die sich nicht anmelden, erhalten keine
           Cookies.
         </p>
       </Abschnitt>

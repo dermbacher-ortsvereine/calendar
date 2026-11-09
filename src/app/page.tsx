@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import { Kalender, KalenderPlatzhalter } from "@/components/kalender/kalender";
 
-export default function KalenderPage(props: PageProps<"/">) {
+export default function KalenderPage() {
   return (
     <Suspense fallback={<KalenderPlatzhalter />}>
-      <Kalender searchParams={props.searchParams} />
+      <Kalender />
     </Suspense>
   );
 }

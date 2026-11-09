@@ -1,33 +1,29 @@
-import { io } from "next/cache";
-import { getTermin, getTermineZwischen, getVeranstalter } from "@/lib/daten";
+import { cacheLife, cacheTag } from "next/cache";
+import { getTermineZwischen, getVeranstalter, TAG_TERMINE, TAG_VERANSTALTER } from "@/lib/daten";
 import { heute as heuteBerlin } from "@/lib/datum";
 import { ladeFenster } from "@/lib/kalender-fenster";
-import { leseZustand } from "@/lib/kalender-url";
-import { getSitzung } from "@/lib/sitzung";
-import { KalenderAnsicht } from "@/components/kalender/kalender-ansicht";
+import { KalenderMitUrl } from "@/components/kalender/kalender-ansicht";
+
+/**
+ * Für alle Besucher gleich: ohne URL-Parameter und ohne Login, damit die Seite statisch
+ * aus dem CDN kommt (neu erzeugt alle 5 Min. bzw. sofort nach Änderungen per Cache-Tag).
+ */
+async function kalenderDaten() {
+  "use cache";
+  cacheLife("kalender");
+  cacheTag(TAG_TERMINE, TAG_VERANSTALTER);
+  const heute = heuteBerlin();
+  const fenster = ladeFenster(heute, null);
+  const [veranstalterListe, termine] = await Promise.all([
+    getVeranstalter(),
+    getTermineZwischen(fenster.von, fenster.bis),
+  ]);
+  return { veranstalterListe, termine, fenster, heute };
+}
 
 /** Lädt die Termine eines großen Zeitraums; Bedienen läuft danach im Browser (KalenderAnsicht). */
-export async function Kalender({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
-  const params = await searchParams;
-  const veranstalterListe = await getVeranstalter();
-  await io(); // "heute" erst zur Anfragezeit bestimmen, nicht beim Prerendern
-  const heute = heuteBerlin();
-  const zustand = leseZustand(params, veranstalterListe.map((v) => v.id), heute);
-  const fenster = ladeFenster(heute, zustand.monat);
-  const [termine, sitzung] = await Promise.all([getTermineZwischen(fenster.von, fenster.bis), getSitzung()]);
-  const einzelTermin =
-    zustand.termin && !termine.some((t) => t.id === zustand.termin) ? await getTermin(zustand.termin) : null;
-
-  return (
-    <KalenderAnsicht
-      veranstalterListe={veranstalterListe}
-      termine={termine}
-      fenster={fenster}
-      heute={heute}
-      einzelTermin={einzelTermin}
-      bearbeiter={sitzung && { istAdmin: sitzung.istAdmin, schreibbar: sitzung.schreibbar }}
-    />
-  );
+export async function Kalender() {
+  return <KalenderMitUrl {...await kalenderDaten()} />;
 }
 
 export function KalenderPlatzhalter() {

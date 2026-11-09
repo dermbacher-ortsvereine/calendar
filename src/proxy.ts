@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { ANMELDE_MARKER, ANMELDE_MARKER_OPTIONEN } from "@/lib/anmelde-marker";
 
 /**
  * Erneuert abgelaufene Login-Sitzungen, bevor Seiten gerendert werden.
@@ -35,7 +36,11 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
+  // Sitzungen von vor der Einführung des Hinweis-Cookies nachrüsten, damit der Header sie erkennt.
+  if (data?.claims?.sub && !request.cookies.has(ANMELDE_MARKER)) {
+    response.cookies.set(ANMELDE_MARKER, "1", ANMELDE_MARKER_OPTIONEN);
+  }
   return response;
 }
 
