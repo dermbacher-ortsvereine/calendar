@@ -13,6 +13,9 @@ export type Sitzung = Schreibrechte & {
   anzeigename: string;
 };
 
+/** Was der Browser über die Sitzung erfährt (Header, Bearbeiten-Knöpfe im Kalender). */
+export type SitzungsInfo = Schreibrechte & { anzeigename: string };
+
 /** Aktuelle Sitzung (pro Request einmal ermittelt). Liest Cookies – nur innerhalb von Suspense nutzen. */
 export const getSitzung = cache(async (): Promise<Sitzung | null> => {
   const supabase = await createSessionClient();

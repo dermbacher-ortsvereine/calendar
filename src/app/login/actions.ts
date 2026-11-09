@@ -1,8 +1,10 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { ANMELDE_MARKER, ANMELDE_MARKER_OPTIONEN } from "@/lib/anmelde-marker";
 import { sichererPfad } from "@/lib/pfad";
-import { ADMIN_EMAIL } from "@/lib/sitzung";
+import { ADMIN_EMAIL, getSitzung, type SitzungsInfo } from "@/lib/sitzung";
 import { createPublicClient } from "@/lib/supabase/public";
 import { createSessionClient } from "@/lib/supabase/server";
 
@@ -42,11 +44,23 @@ export async function anmelden(_vorher: LoginZustand, formData: FormData): Promi
     };
   }
 
+  (await cookies()).set(ANMELDE_MARKER, "1", ANMELDE_MARKER_OPTIONEN);
   redirect(ziel);
 }
 
 export async function abmelden() {
   const supabase = await createSessionClient();
   await supabase.auth.signOut();
+  (await cookies()).delete(ANMELDE_MARKER);
   redirect("/");
+}
+
+/** Login-Status für den Browser (Header, Bearbeiten-Knöpfe). Ohne gültige Sitzung fällt das Hinweis-Cookie weg. */
+export async function sitzungsInfo(): Promise<SitzungsInfo | null> {
+  const sitzung = await getSitzung();
+  if (!sitzung) {
+    (await cookies()).delete(ANMELDE_MARKER);
+    return null;
+  }
+  return { anzeigename: sitzung.anzeigename, istAdmin: sitzung.istAdmin, schreibbar: sitzung.schreibbar };
 }

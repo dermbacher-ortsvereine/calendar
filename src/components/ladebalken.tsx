@@ -2,6 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useImBrowser } from "@/lib/im-browser";
 
 /** Interner Link, bei dem Next.js eine neue Seite vom Server holt? */
 function startetNavigation(e: MouseEvent): boolean {
@@ -16,6 +17,11 @@ function startetNavigation(e: MouseEvent): boolean {
 
 /** Schmaler Balken am oberen Rand, solange nach einem Linkklick die nächste Seite lädt. */
 export function Ladebalken() {
+  // Erst im Browser: useSearchParams() beim Server-Rendern würde die Seite dynamisch machen.
+  return useImBrowser() ? <LadebalkenImBrowser /> : null;
+}
+
+function LadebalkenImBrowser() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   // Neue URL = Navigation fertig: der Schlüssel setzt den Balken zurück.
