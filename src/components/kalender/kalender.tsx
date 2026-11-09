@@ -6,11 +6,12 @@ import { KalenderMitUrl } from "@/components/kalender/kalender-ansicht";
 
 /**
  * Für alle Besucher gleich: ohne URL-Parameter und ohne Login, damit die Seite statisch
- * aus dem CDN kommt (neu erzeugt alle 5 Min. bzw. sofort nach Änderungen per Cache-Tag).
+ * aus dem CDN kommt (neu erzeugt höchstens stündlich bzw. sofort nach Änderungen per Cache-Tag).
+ * Das explizite cacheLife gilt auch gegenüber den kürzeren Lebensdauern der Datenfunktionen.
  */
 async function kalenderDaten() {
   "use cache";
-  cacheLife("kalender");
+  cacheLife("startseite");
   cacheTag(TAG_TERMINE, TAG_VERANSTALTER);
   const heute = heuteBerlin();
   const fenster = ladeFenster(heute, null);

@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   cacheLife: {
     // Öffentliche Kalenderdaten: kurz cachen; nach Änderungen sofort per Tag neu laden.
     kalender: { stale: 60, revalidate: 300, expire: 86400 },
+    // Statische Startseite: Änderungen kommen sofort per Cache-Tag; "heute" korrigiert der Browser.
+    // Neu erzeugt wird nur beim ersten Aufruf nach Ablauf – ohne Besucher entsteht keine Rechenzeit.
+    startseite: { stale: 60, revalidate: 3600, expire: 86400 },
   },
   turbopack: {
     rules: {
